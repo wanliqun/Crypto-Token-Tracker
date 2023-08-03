@@ -1,0 +1,13 @@
+**/.DS_Store
+*-debug.log
+*-error.log
+*.log
+/.idea
+/.nyc_output
+/dist
+/lib
+/package-lock.json
+/tmp
+node_modules
+.github
+.vscode

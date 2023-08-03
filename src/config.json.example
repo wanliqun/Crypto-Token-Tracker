@@ -1,0 +1,19 @@
+{
+    "log_level": "info",
+    "log_path": "",
+    "max_out_depth": 3,
+    "max_in_depth": 0,
+    "worker_pool_size": 4,
+    "tron": {
+        "data_source": "tronscan",
+        "api_keys": [
+            "YOUR-TRONSCAN-API-KEY"
+        ]
+    },
+    "database": {
+        "host"     : "MYSQL_HOST",
+        "user"     : "MYSQL_USER",
+        "password" : "MYSQL_PASSWORD",
+        "database" : "MYSQL_DATABASE"   
+    }
+}
