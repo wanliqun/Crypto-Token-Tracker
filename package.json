@@ -1,15 +1,15 @@
 {
   "name": "crypto-money-tracker",
   "version": "0.0.1",
-  "description": "cryotocurrency money flow tracker",
+  "description": "Cryoto-currency money flow tracker",
   "author": "",
   "bin": {
     "crypto-money-tracker": "./bin/run"
   },
-  "homepage": "https://github.com/Conflux-Chain/crypto-money-tracker",
+  "homepage": "https://github.com/wanliqun/Crypto-Token-Tracker",
   "license": "MIT",
   "main": "dist/index.js",
-  "repository": "Conflux-Chain/crypto-money-tracker",
+  "repository": "wanliqun/Crypto-Token-Tracker",
   "files": [
     "/bin",
     "/dist",
@@ -76,7 +76,7 @@
   "engines": {
     "node": ">=12.0.0"
   },
-  "bugs": "https://github.com/Conflux-Chain/crypto-money-tracker/issues",
+  "bugs": "https://github.com/wanliqun/Crypto-Token-Tracker/issues",
   "keywords": [
     "oclif"
   ],

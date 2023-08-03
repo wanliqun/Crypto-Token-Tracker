@@ -1,7 +1,7 @@
-oclif-hello-world
+Crypto-Token-Tracker
 =================
 
-oclif example Hello World CLI
+Money Flow Tracking for Crypto Token on ETH/TRON network.
 
 [![oclif](https://img.shields.io/badge/cli-oclif-brightgreen.svg)](https://oclif.io)
 [![CircleCI](https://circleci.com/gh/oclif/hello-world/tree/main.svg?style=shield)](https://circleci.com/gh/oclif/hello-world/tree/main)
