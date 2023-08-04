@@ -32,7 +32,7 @@ export class TronScanTransferStore extends BaseStore {
                 amount decimal(65,0) NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (id),
-                UNIQUE KEY(txn_hash),
+                UNIQUE KEY(txn_hash, from_addr, to_addr),
                 KEY idx_block_num (block_num),
                 KEY idx_timestamp (block_ts),
                 KEY idx_from_to (from_addr,to_addr),
