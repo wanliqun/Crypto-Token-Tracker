@@ -10,20 +10,20 @@ const cexTags = [
   'Coinbase',
   'Kraken',
   'OKX',
+  'OKEX',
   'Bitstamp',
   'Bitfinex',
-  'Bitstamp',
   'Hotbit',
   'Gemini',
   'Yobit',
   'Bybit',
   'Gate',
+  'MXC',
   'MEXC',
   'Bitget',
   'FTX',
   'CoinEX',
   'Poloniex',
-  'MXC',
   'Bitex',
   'ZB',
   'Bitmax',
@@ -41,12 +41,20 @@ const cexTags = [
   'Bibox',
   'Nexo',
   'Bittrex',
-  'Pionex',
+  'CEX.io',
 ]
 
 export function identityCex(addrTag: string): string | undefined {
   if (!addrTag) {
     return
+  }
+
+  if (addrTag.toLowerCase() in ["okx", "okex"]) {
+    return "OKX"
+  }
+
+  if (addrTag.toLowerCase() in ["mxc", "mexc"]) {
+    return "MXC"
   }
 
   for (const cex of cexTags) {

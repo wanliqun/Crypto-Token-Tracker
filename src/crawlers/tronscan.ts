@@ -2,10 +2,11 @@ import {logger} from '../config/config'
 import {BaseCrawler} from './base'
 import mysql from 'mysql2'
 import {PoolConnection} from 'mysql2/promise'
-import {TronScanAddressStore, TronScanTransferStore} from '../store/tron'
+import {TronScanAddressStore, TronScanTokenTransferStore} from '../store/tron'
 import axios from 'axios'
 import {sleep} from 'modern-async'
-import {CrawlType, ICrawlTask} from './interface'
+import {ICrawlTask} from './interface'
+import { FlowType } from '../const'
 import {getAddrInfoFromOkLink} from '../util/addr-meta'
 //import {loggers} from 'winston'
 import confj from '../config.json'
@@ -16,13 +17,13 @@ export class TronScanCrawler extends BaseCrawler {
       return confj.tron.api_keys[this.keyIndex++ % confj.tron.api_keys.length]
     }
 
-    transferStore: TronScanTransferStore
+    transferStore: TronScanTokenTransferStore
     addrStore: TronScanAddressStore
 
     endpoint = 'https://apilist.tronscanapi.com/api/token_trc20/transfers'
     pageLimit = 200
 
-    constructor(dbpool: mysql.Pool, transferStore: TronScanTransferStore, addrStore: TronScanAddressStore) {
+    constructor(dbpool: mysql.Pool, transferStore: TronScanTokenTransferStore, addrStore: TronScanAddressStore) {
       super(dbpool)
       this.transferStore = transferStore
       this.addrStore = addrStore
@@ -47,7 +48,7 @@ export class TronScanCrawler extends BaseCrawler {
           end_timestamp: lastTrackTime,
         }
 
-        if (task.type === CrawlType.TransferIn) {
+        if (task.type === FlowType.TransferIn) {
           params.toAddress = task.address
         } else {
           params.fromAddress = task.address
@@ -108,7 +109,7 @@ export class TronScanCrawler extends BaseCrawler {
 
             await this._saveTransferAddress(task.token, trasfer)
 
-            if (task.type == CrawlType.TransferIn) {
+            if (task.type == FlowType.TransferIn) {
               cntAddrs.set(trasfer.from_address, true)
             } else {
               cntAddrs.set(trasfer.to_address, true)

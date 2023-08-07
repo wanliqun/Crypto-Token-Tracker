@@ -1,20 +1,20 @@
 import mysql from 'mysql2'
-import {BaseStore} from './store'
+import {BaseStore, IAddressStore, ITokenTransferStore} from './store'
 import {PoolConnection} from 'mysql2/promise'
-import {CrawlType} from '../crawlers/interface'
+import { FlowType } from '../const'
 
-export class OklinkTransferStore extends BaseStore {
+export class OklinkTokenTransferStore extends BaseStore implements ITokenTransferStore {
   private constructor(dbpool: mysql.Pool, chain: string) {
     super(dbpool, `oklink_${chain}_transfers`)
   }
 
-    static instances: Map<string, OklinkTransferStore>
+    static instances: Map<string, OklinkTokenTransferStore>
     static async singleton(dbpool: mysql.Pool, chain: string) {
       if (!this.instances) {
-        this.instances = new Map<string, OklinkTransferStore>()
+        this.instances = new Map<string, OklinkTokenTransferStore>()
 
         if (!this.instances.has(chain)) {
-          const i = new OklinkTransferStore(dbpool, chain)
+          const i = new OklinkTokenTransferStore(dbpool, chain)
           await i.init()
           this.instances.set(chain, i)
         }
@@ -42,9 +42,9 @@ export class OklinkTransferStore extends BaseStore {
       )
     }
 
-    async queryCounterAddresses(addr: string, ctype: CrawlType) {
+    async queryCounterAddresses(addr: string, ctype: FlowType) {
       let [myAddrField, counterAddrField] = ['from_addr', 'to_addr']
-      if (ctype === CrawlType.TransferIn) {
+      if (ctype === FlowType.TransferIn) {
         [myAddrField, counterAddrField] = [counterAddrField, myAddrField]
       }
 
@@ -53,7 +53,7 @@ export class OklinkTransferStore extends BaseStore {
       )
 
       const values = rows as mysql.RowDataPacket[]
-      if (!(values?.length !== 0)) {
+      if (values?.length === 0) {
         return
       }
 
@@ -83,9 +83,23 @@ export class OklinkTransferStore extends BaseStore {
                 VALUES ? ON DUPLICATE KEY UPDATE created_at = NOW()`, [txns],
       )
     }
+
+    async getMoneyFlowInfo(from: string, to: string) {
+      const [rows] = await this.dbpool.promise().query(
+        `SELECT txn_count, total_value FROM ${this.tableName} WHERE from_addr=? AND to_addr=?`,
+        [from, to],
+      )
+
+      const values = rows as mysql.RowDataPacket[]
+      if (values?.length === 0) {
+        return [0, 0]
+      }
+
+      return [parseFloat(values[0].txn_count), parseFloat(values[0].total_value)];
+    }
 }
 
-export class OklinkAddressStore extends BaseStore {
+export class OklinkAddressStore extends BaseStore implements IAddressStore {
     protected cache: Map<string, any>
 
     private constructor(dbpool: mysql.Pool, chain: string) {
@@ -151,9 +165,9 @@ export class OklinkAddressStore extends BaseStore {
       this.cache.set(addrObj.addr, addrObj)
     }
 
-    async updateTrackOffsetWithTxn(dbTxn: PoolConnection, addr: string, newTrackOffset: number, ctype: CrawlType) {
+    async updateTrackOffsetWithTxn(dbTxn: PoolConnection, addr: string, newTrackOffset: number, ctype: FlowType) {
       let trackTimeField = 'last_track_in_offset'
-      if (ctype === CrawlType.TransferOut) {
+      if (ctype === FlowType.TransferOut) {
         trackTimeField = 'last_track_out_offset'
       }
 
@@ -163,17 +177,17 @@ export class OklinkAddressStore extends BaseStore {
       )
     }
 
-    async getLatestTrackOffset(addr: string, ctype: CrawlType) {
+    async getLatestTrackOffset(addr: string, ctype: FlowType) {
       const [rows] = await this.dbpool.promise().query(
         `SELECT last_track_in_offset, last_track_out_offset FROM ${this.tableName} WHERE addr = ?`, [addr],
       )
 
       const values = rows as mysql.RowDataPacket[]
-      if (!(values?.length !== 0)) {
+      if (values?.length === 0) {
         return
       }
 
-      if (ctype === CrawlType.TransferIn) {
+      if (ctype === FlowType.TransferIn) {
         return values[0].last_track_in_offset
       }
 

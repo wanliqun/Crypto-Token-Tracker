@@ -1,18 +1,18 @@
 import mysql from 'mysql2'
-import {BaseStore} from './store'
+import {BaseStore, ITokenTransferStore} from './store'
 import {PoolConnection} from 'mysql2/promise'
-import {CrawlType} from '../crawlers/interface'
+import { FlowType } from '../const'
 //const {sprintf} = require('sprintf-js')
 
-export class TronScanTransferStore extends BaseStore {
+export class TronScanTokenTransferStore extends BaseStore implements ITokenTransferStore {
   private constructor(dbpool: mysql.Pool) {
     super(dbpool, 'tronscan_transfers')
   }
 
-    static instance: TronScanTransferStore
+    static instance: TronScanTokenTransferStore
     static async singleton(dbpool: mysql.Pool) {
       if (!this.instance) {
-        this.instance = new TronScanTransferStore(dbpool)
+        this.instance = new TronScanTokenTransferStore(dbpool)
         await this.instance.init()
       }
 
@@ -41,9 +41,9 @@ export class TronScanTransferStore extends BaseStore {
       )
     }
 
-    async queryCounterAddresses(addr: string, ctype: CrawlType) {
+    async queryCounterAddresses(addr: string, ctype: FlowType) {
       let [myAddrField, counterAddrField] = ['from_addr', 'to_addr']
-      if (ctype === CrawlType.TransferIn) {
+      if (ctype === FlowType.TransferIn) {
         [myAddrField, counterAddrField] = [counterAddrField, myAddrField]
       }
 
@@ -52,7 +52,7 @@ export class TronScanTransferStore extends BaseStore {
       )
 
       const values = rows as mysql.RowDataPacket[]
-      if (!(values?.length !== 0)) {
+      if (values?.length === 0) {
         return
       }
 
@@ -62,6 +62,10 @@ export class TronScanTransferStore extends BaseStore {
       }
 
       return addrs
+    }
+
+    async getMoneyFlowInfo(from: string, to: string) {
+      throw new Error("not implemented")
     }
 
     async batchSaveWithTxn(dbTxn: PoolConnection, transfers: any[]) {
@@ -145,9 +149,9 @@ export class TronScanAddressStore extends BaseStore {
       this.cache.set(addrObj.addr, addrObj)
     }
 
-    async updateTrackTimeWithTxn(dbTxn: PoolConnection, addr: string, newTrackTime: number, ctype: CrawlType) {
+    async updateTrackTimeWithTxn(dbTxn: PoolConnection, addr: string, newTrackTime: number, ctype: FlowType) {
       let trackTimeField = 'last_track_in_time'
-      if (ctype === CrawlType.TransferOut) {
+      if (ctype === FlowType.TransferOut) {
         trackTimeField = 'last_track_out_time'
       }
 
@@ -157,17 +161,17 @@ export class TronScanAddressStore extends BaseStore {
       )
     }
 
-    async getLatestTrackTime(addr: string, ctype: CrawlType) {
+    async getLatestTrackTime(addr: string, ctype: FlowType) {
       const [rows] = await this.dbpool.promise().query(
         `SELECT last_track_in_time, last_track_out_time FROM ${this.tableName} WHERE addr = ?`, [addr],
       )
 
       const values = rows as mysql.RowDataPacket[]
-      if (!(values?.length !== 0)) {
+      if (values?.length === 0) {
         return
       }
 
-      if (ctype === CrawlType.TransferIn) {
+      if (ctype === FlowType.TransferIn) {
         return values[0].last_track_in_time
       }
 

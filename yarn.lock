@@ -3369,6 +3369,11 @@ lines-and-columns@^1.1.6:
   resolved "https://registry.npmjs.org/lines-and-columns/-/lines-and-columns-1.2.4.tgz"
   integrity sha512-7ylylesZQ/PV29jhEDl3Ufjo6ZX7gCqJr5F7PKrqc93v7fzSymt1BpwEU8nAUXs8qzzvqhbjhK5QZg6Mt/HkBg==
 
+linked-list-typescript@^1.0.11:
+  version "1.0.15"
+  resolved "https://registry.yarnpkg.com/linked-list-typescript/-/linked-list-typescript-1.0.15.tgz#faeed93cf9203f102e2158c29edcddda320abe82"
+  integrity sha512-RIyUu9lnJIyIaMe63O7/aFv/T2v3KsMFuXMBbUQCHX+cgtGro86ETDj5ed0a8gQL2+DFjzYYsgVG4I36/cUwgw==
+
 load-json-file@^5.3.0:
   version "5.3.0"
   resolved "https://registry.npmjs.org/load-json-file/-/load-json-file-5.3.0.tgz"
@@ -4476,6 +4481,13 @@ queue-microtask@^1.2.2:
   resolved "https://registry.npmjs.org/queue-microtask/-/queue-microtask-1.2.3.tgz"
   integrity sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A==
 
+queue-typescript@^1.0.1:
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/queue-typescript/-/queue-typescript-1.0.1.tgz#2d7842fc3b3e0e3f33d077887a8f2a5bb0baf460"
+  integrity sha512-tkK08uPfmpPl0cX1WRSU3EoNb/T5zSoZPGkkpfGX4E8QayWvEmLS2cI3pFngNPkNTCU5pCDQ1IwlzN0L5gdFPg==
+  dependencies:
+    linked-list-typescript "^1.0.11"
+
 quick-lru@^5.1.1:
   version "5.1.1"
   resolved "https://registry.npmjs.org/quick-lru/-/quick-lru-5.1.1.tgz"
@@ -4955,6 +4967,13 @@ stack-trace@0.0.x:
   version "0.0.10"
   resolved "https://registry.npmjs.org/stack-trace/-/stack-trace-0.0.10.tgz"
   integrity sha512-KGzahc7puUKkzyMt+IqAep+TVNbKP+k2Lmwhub39m1AsTSkaDutx56aDCo+HLDzf/D26BIHTJWNiTG1KAJiQCg==
+
+stack-typescript@^1.0.4:
+  version "1.0.4"
+  resolved "https://registry.yarnpkg.com/stack-typescript/-/stack-typescript-1.0.4.tgz#185c57ca2e5f40c15266794fbdf43e727e7c80f4"
+  integrity sha512-LAFycOVCWRYP6TDbwXR2XeXTmKjZT+wpdC4GEnBWWYfyTUK7NOassuqVTbUXsEA6CTCgk4FMOkUi+yFS33D1mw==
+  dependencies:
+    linked-list-typescript "^1.0.11"
 
 stdout-stderr@^0.1.9:
   version "0.1.13"

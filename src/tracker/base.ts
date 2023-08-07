@@ -3,7 +3,8 @@ import {logger} from '../config/config'
 import {ITracker} from './interface'
 import {/* AsyncQueueWorkerPool, ITask, */ IWorkerPool} from '../workers/workerpool'
 import {registerGracefulShutdown} from '../util/graceful'
-import {CrawlType, ICrawlTask, ICrawler} from '../crawlers/interface'
+import { ICrawlTask, ICrawler} from '../crawlers/interface'
+import { FlowType } from '../const'
 import {sleep} from 'modern-async'
 import {IAddressStore} from '../store/store'
 
@@ -76,7 +77,7 @@ export abstract class BaseTracker implements ITracker {
     }
 
     traverseOut(token: string, address: string, level: number) {
-      const task: ICrawlTask = {token, address, level, type: CrawlType.TransferOut}
+      const task: ICrawlTask = {token, address, level, type: FlowType.TransferOut}
 
       if (level > this.maxOutDepth) { // max tracking level reached
         return logger.debug('Max track level reached', {task})
@@ -96,7 +97,7 @@ export abstract class BaseTracker implements ITracker {
     }
 
     traverseIn(token: string, address: string, level: number) {
-      const task: ICrawlTask = {token, address, level, type: CrawlType.TransferIn}
+      const task: ICrawlTask = {token, address, level, type: FlowType.TransferIn}
 
       if (level > this.maxInDepth) { // max tracking level reached
         return logger.debug('Max track level reached', {task})
@@ -136,7 +137,7 @@ export abstract class BaseTracker implements ITracker {
             }
             */
 
-        if (task.type == CrawlType.TransferIn) {
+        if (task.type == FlowType.TransferIn) {
           this.traverseIn(task.token, addr, task.level + 1)
         } else {
           this.traverseOut(task.token, addr, task.level + 1)

@@ -1,14 +1,10 @@
-
-export enum CrawlType {
-    TransferIn,
-    TransferOut
-}
+import {FlowType} from "../const"
 
 export interface ICrawlTask {
     token: string
     address: string
     level: number
-    type: CrawlType
+    type: FlowType
 }
 
 export interface ICrawlObserver {

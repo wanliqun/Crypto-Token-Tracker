@@ -1,7 +1,6 @@
 import mysql from 'mysql2'
 import {PoolConnection} from 'mysql2/promise'
-import {CrawlType} from '../crawlers/interface'
-const {sprintf} = require('sprintf-js')
+import { FlowType } from '../const'
 
 export abstract class BaseStore {
     protected tableName: string
@@ -35,5 +34,10 @@ export abstract class BaseStore {
 }
 
 export interface IAddressStore {
-    get(addr: string): Promise<any>
+  get(addr: string): Promise<any>
+}
+
+export interface ITokenTransferStore {
+  queryCounterAddresses(addr: string, ctype: FlowType): Promise<any>
+  getMoneyFlowInfo(from: string, to: string): Promise<any>
 }

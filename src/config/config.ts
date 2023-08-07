@@ -4,8 +4,8 @@ import {createLogger, transports, format} from 'winston'
 import {AsyncQueueWorkerPool, IWorkerPool} from '../workers/workerpool'
 import {ICrawler} from '../crawlers/interface'
 import {TronScanCrawler} from '../crawlers/tronscan'
-import {TronScanAddressStore, TronScanTransferStore} from '../store/tron'
-import {OklinkAddressStore, OklinkTransferStore} from '../store/oklink'
+import {TronScanAddressStore, TronScanTokenTransferStore} from '../store/tron'
+import {OklinkAddressStore, OklinkTokenTransferStore} from '../store/oklink'
 import {OklinkCrawler} from '../crawlers/oklink'
 import {IAddressStore} from '../store/store'
 import {TronTracker} from '../tracker/tron'
@@ -58,14 +58,14 @@ export const getWorkerPool = async () => {
 // factory method to get TRON crawler
 export const getTronCrawler = async (dbpool: mysql.Pool): Promise<ICrawler> => {
   if (confj.tron.data_source == 'oklink') { // crawl from oklink?
-    const transferStore = await OklinkTransferStore.singleton(dbpool, chainTron)
+    const transferStore = await OklinkTokenTransferStore.singleton(dbpool, chainTron)
     const addrStore = await OklinkAddressStore.singleton(dbpool, chainTron)
 
     return new OklinkCrawler(dbpool, chainTron, transferStore, addrStore)
   }
 
   // otherwise, use tronscan as default
-  const transferStore = await TronScanTransferStore.singleton(dbpool)
+  const transferStore = await TronScanTokenTransferStore.singleton(dbpool)
   const addrStore = await TronScanAddressStore.singleton(dbpool)
 
   return new TronScanCrawler(dbpool, transferStore, addrStore)
@@ -78,9 +78,14 @@ export const getTronTracker = async (dbpool: mysql.Pool, workerpool: IWorkerPool
   return new TronTracker(dbpool, addrStore, workerpool, crawler, confj.max_out_depth, confj.max_in_depth)
 }
 
+// factory method to get TRON reporter
+export const getTronReporter = async (dbpool: mysql.Pool) => {
+  
+}
+
 // factory method to get ETH crawler
 export const getEthCrawler = async (dbpool: mysql.Pool): Promise<ICrawler> => {
-  const transferStore = await OklinkTransferStore.singleton(dbpool, chainEth)
+  const transferStore = await OklinkTokenTransferStore.singleton(dbpool, chainEth)
   const addrStore = await OklinkAddressStore.singleton(dbpool, chainEth)
 
   return new OklinkCrawler(dbpool, chainEth, transferStore, addrStore)

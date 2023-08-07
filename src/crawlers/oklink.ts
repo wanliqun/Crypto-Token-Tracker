@@ -4,17 +4,18 @@ import mysql from 'mysql2'
 import {PoolConnection} from 'mysql2/promise'
 import axios from 'axios'
 import {sleep} from 'modern-async'
-import {CrawlType, ICrawlTask} from './interface'
+import { ICrawlTask} from './interface'
+import { FlowType } from '../const'
 import {HttpsProxyAgent} from 'https-proxy-agent'
-import {OklinkTransferStore, OklinkAddressStore} from '../store/oklink'
+import {OklinkTokenTransferStore, OklinkAddressStore} from '../store/oklink'
 import {getAddrInfoFromOkLink} from '../util/addr-meta'
 
 export class OklinkCrawler extends BaseCrawler {
     protected chain: string // only "TRX" and "ETH" are supported
-    transferStore: OklinkTransferStore
+    transferStore: OklinkTokenTransferStore
     addrStore: OklinkAddressStore
 
-    constructor(dbpool: mysql.Pool, chain: string, transferStore: OklinkTransferStore, addrStore: OklinkAddressStore) {
+    constructor(dbpool: mysql.Pool, chain: string, transferStore: OklinkTokenTransferStore, addrStore: OklinkAddressStore) {
       super(dbpool)
       this.chain = chain
       this.transferStore = transferStore
@@ -31,14 +32,14 @@ export class OklinkCrawler extends BaseCrawler {
       }
 
       let bigTaskTipped = false
-      let offset = lastTrackOffset ? lastTrackOffset : 0
+      let offset = lastTrackOffset || 0
       do {
         let result: any
         const params = {
           address: task.address,
           chain: this.chain,
           tokenContractAddress: task.token,
-          flowType: (task.type == CrawlType.TransferIn) ? 1 : 2,
+          flowType: (task.type == FlowType.TransferIn) ? 1 : 2,
           sort: 'firstTransactionTime,asc',
           offset: offset,
           limit: 200,
@@ -85,7 +86,7 @@ export class OklinkCrawler extends BaseCrawler {
         await this.handleTokenTransfers(result.data!.data, task, offset)
         offset += result.data!.data!.edge!.length
 
-        if (offset >= ((lastTrackOffset ? lastTrackOffset : 0) + 1000) && !bigTaskTipped) {
+        if (offset >= ((lastTrackOffset || 0) + 1000) && !bigTaskTipped) {
           logger.info('Big crawl task with more than 1000 token transfers', task)
           bigTaskTipped = true
         }
@@ -95,7 +96,7 @@ export class OklinkCrawler extends BaseCrawler {
     async handleTokenTransfers(data: any, task: ICrawlTask, oldOffset: number) {
       const cntAddrs: Map<string, any> = new Map<string, any>()
 
-      const addrContractBooleans: Map<string, boolean> = new Map<string, any>()
+      const addrContractBooleans: Map<string, any> = new Map<string, any>()
       for (const v of data.vertex) {
         addrContractBooleans.set(v.address, (v.addressTagType == 3))
       }
@@ -120,7 +121,7 @@ export class OklinkCrawler extends BaseCrawler {
 
             await this._saveTransferAddress(task.token, t)
 
-            if (task.type == CrawlType.TransferIn) {
+            if (task.type == FlowType.TransferIn) {
               cntAddrs.set(e.from, true)
             } else {
               cntAddrs.set(e.to, true)
@@ -159,7 +160,7 @@ export class OklinkCrawler extends BaseCrawler {
     }
 
     async _saveAddress(token: string, addrInfo: {addr: string, is_contract: any | undefined, entity_tag: string}) {
-      if (typeof addrInfo.is_contract === undefined) {
+      if (addrInfo.is_contract === undefined) {
         for (let i = 0; i < 3; i++) {
           try {
             const info = await getAddrInfoFromOkLink(token, addrInfo.addr, this.chain)
