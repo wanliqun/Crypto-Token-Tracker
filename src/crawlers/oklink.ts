@@ -76,16 +76,16 @@ export class OklinkCrawler extends BaseCrawler {
             logger.debug('No more token transfers to crawl', {params})
             break
           }
+
+          await this.handleTokenTransfers(result.data!.data, task, offset)
         } catch (error) {
           console.log(error)
           logger.error('Failed to crawl OKLink transfers', {params})
           await sleep(1500)
           continue
         }
-
-        await this.handleTokenTransfers(result.data!.data, task, offset)
+        
         offset += result.data!.data!.edge!.length
-
         if (offset >= ((lastTrackOffset || 0) + 1000) && !bigTaskTipped) {
           logger.info('Big crawl task with more than 1000 token transfers', task)
           bigTaskTipped = true
@@ -101,33 +101,33 @@ export class OklinkCrawler extends BaseCrawler {
         addrContractBooleans.set(v.address, (v.addressTagType == 3))
       }
 
+      const txns: any[] = []
+      for (const e of data.edge) {
+        const t = {
+          from_addr: e.from,
+          to_addr: e.to,
+          total_value: e.totalValue,
+          txn_count: e.txCount,
+          first_txn_ts: e.firstTransactionTime,
+          last_txn_ts: e.lastTransactionTime,
+          from_tag: e.fromTag,
+          to_tag: e.toTag,
+          fromAddressIsContract: addrContractBooleans.get(e.from),
+          toAddressIsContract: addrContractBooleans.get(e.to),
+        }
+        txns.push(t)
+
+        await this._saveTransferAddress(task.token, t)
+
+        if (task.type == FlowType.TransferIn) {
+          cntAddrs.set(e.from, true)
+        } else {
+          cntAddrs.set(e.to, true)
+        }
+      }
+
       await this.transferStore.txnExec(
         async (conn: PoolConnection) => {
-          const txns = []
-          for (const e of data.edge) {
-            const t = {
-              from_addr: e.from,
-              to_addr: e.to,
-              total_value: e.totalValue,
-              txn_count: e.txCount,
-              first_txn_ts: e.firstTransactionTime,
-              last_txn_ts: e.lastTransactionTime,
-              from_tag: e.fromTag,
-              to_tag: e.toTag,
-              fromAddressIsContract: addrContractBooleans.get(e.from),
-              toAddressIsContract: addrContractBooleans.get(e.to),
-            }
-            txns.push(t)
-
-            await this._saveTransferAddress(task.token, t)
-
-            if (task.type == FlowType.TransferIn) {
-              cntAddrs.set(e.from, true)
-            } else {
-              cntAddrs.set(e.to, true)
-            }
-          }
-
           await this.transferStore.batchSaveWithTxn(conn, txns)
           await this.addrStore.updateTrackOffsetWithTxn(conn, task.address, oldOffset + data.edge.length, task.type)
           return null

@@ -67,6 +67,8 @@ export class TronScanCrawler extends BaseCrawler {
             logger.debug('No more token transfers to crawl', {params})
             break
           }
+
+          await this.handleTokenTransfers(result.data, task)
         } catch (error) {
           console.log(error)
           logger.error('failed to crawl TRON transfers', {params})
@@ -74,9 +76,8 @@ export class TronScanCrawler extends BaseCrawler {
           continue
         }
 
-        await this.handleTokenTransfers(result.data, task)
+       
         start += result.data.token_transfers.length
-
         if (start >= result.data.total) {
           logger.debug('All token transfer crawls are done', {start, total: result.data.total, task})
           break
@@ -93,31 +94,29 @@ export class TronScanCrawler extends BaseCrawler {
 
     async handleTokenTransfers(data: any, task: ICrawlTask) {
       const cntAddrs: Map<string, any> = new Map<string, any>()
+      const txns: any[] = []
+      for (const trasfer of data.token_transfers) {
+        txns.push({
+          block_num: trasfer.block,
+          block_ts: trasfer.block_ts,
+          txn_hash: trasfer.transaction_id,
+          from_addr: trasfer.from_address,
+          to_addr: trasfer.to_address,
+          amount: trasfer.quant,
+        })
 
+        await this._saveTransferAddress(task.token, trasfer)
+
+        if (task.type == FlowType.TransferIn) {
+          cntAddrs.set(trasfer.from_address, true)
+        } else {
+          cntAddrs.set(trasfer.to_address, true)
+        }
+      }
+      
       await this.transferStore.txnExec(
         async (conn: PoolConnection) => {
-          const txns = []
-          for (const trasfer of data.token_transfers) {
-            txns.push({
-              block_num: trasfer.block,
-              block_ts: trasfer.block_ts,
-              txn_hash: trasfer.transaction_id,
-              from_addr: trasfer.from_address,
-              to_addr: trasfer.to_address,
-              amount: trasfer.quant,
-            })
-
-            await this._saveTransferAddress(task.token, trasfer)
-
-            if (task.type == FlowType.TransferIn) {
-              cntAddrs.set(trasfer.from_address, true)
-            } else {
-              cntAddrs.set(trasfer.to_address, true)
-            }
-          }
-
           await this.transferStore.batchSaveWithTxn(conn, txns)
-
           const lastTransfer = data.token_transfers[data.token_transfers.length - 1]
           await this.addrStore.updateTrackTimeWithTxn(conn, task.address, lastTransfer.block_ts, task.type)
           return null

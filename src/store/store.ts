@@ -22,14 +22,13 @@ export abstract class BaseStore {
             throw err
           }
         }
+        await conn.commit()
       } catch (error) {
         await conn.rollback()
         throw error
       } finally {
         conn.release()
       }
-
-      await conn.commit()
     }
 }
 
