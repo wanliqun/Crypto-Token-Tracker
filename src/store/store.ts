@@ -15,6 +15,7 @@ export abstract class BaseStore {
     async txnExec(...txnfuncs: ((conn: PoolConnection) => Promise<Error | null>)[]) {
       const conn = await this.dbpool.promise().getConnection()
 
+      await conn.execute('SET TRANSACTION ISOLATION LEVEL READ COMMITTED');
       await conn.beginTransaction()
       try {
         for (const txnf of txnfuncs) {
@@ -38,7 +39,7 @@ export abstract class BaseAddressStore extends BaseStore implements IAddressStor
 
     constructor(dbpool: mysql.Pool, tblname: string) {
       super(dbpool, tblname)
-      this.cache = new LRUCache<string, any>({ maxSize: 100_000, })
+      this.cache = new LRUCache<string, any>({ maxSize: 300_000, })
     }
 
     abstract get(addr: string): Promise<any>
