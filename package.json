@@ -29,6 +29,7 @@
     "queue-typescript": "^1.0.1",
     "sprintf-js": "^1.1.2",
     "stack-typescript": "^1.0.4",
+    "typescript-lru-cache": "^2.0.0",
     "winston": "^3.10.0"
   },
   "devDependencies": {

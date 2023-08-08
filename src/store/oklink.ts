@@ -1,5 +1,5 @@
 import mysql from 'mysql2'
-import {BaseStore, IAddressStore, ITokenTransferStore} from './store'
+import {BaseStore, BaseAddressStore, ITokenTransferStore} from './store'
 import {PoolConnection} from 'mysql2/promise'
 import { FlowType } from '../const'
 
@@ -99,12 +99,9 @@ export class OklinkTokenTransferStore extends BaseStore implements ITokenTransfe
     }
 }
 
-export class OklinkAddressStore extends BaseStore implements IAddressStore {
-    protected cache: Map<string, any>
-
+export class OklinkAddressStore extends BaseAddressStore {
     private constructor(dbpool: mysql.Pool, chain: string) {
       super(dbpool, `oklink_${chain}_addresses`)
-      this.cache = new Map<string, any>()
     }
 
     static instances: Map<string, OklinkAddressStore>

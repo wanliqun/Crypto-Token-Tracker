@@ -1,5 +1,5 @@
 import mysql from 'mysql2'
-import {BaseStore, ITokenTransferStore} from './store'
+import {BaseStore, BaseAddressStore, ITokenTransferStore} from './store'
 import {PoolConnection} from 'mysql2/promise'
 import { FlowType } from '../const'
 //const {sprintf} = require('sprintf-js')
@@ -88,12 +88,9 @@ export class TronScanTokenTransferStore extends BaseStore implements ITokenTrans
     }
 }
 
-export class TronScanAddressStore extends BaseStore {
-    protected cache: Map<string, any>
-
+export class TronScanAddressStore extends BaseAddressStore {
     private constructor(dbpool: mysql.Pool) {
       super(dbpool, 'tron_addresses' /* "tronscan_addresses" */)
-      this.cache = new Map<string, any>()
     }
 
     static instance: TronScanAddressStore

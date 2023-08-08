@@ -1,6 +1,7 @@
 import mysql from 'mysql2'
 import {PoolConnection} from 'mysql2/promise'
 import { FlowType } from '../const'
+import { LRUCache } from 'typescript-lru-cache'
 
 export abstract class BaseStore {
     protected tableName: string
@@ -30,6 +31,17 @@ export abstract class BaseStore {
         conn.release()
       }
     }
+}
+
+export abstract class BaseAddressStore extends BaseStore implements IAddressStore {
+    protected cache: LRUCache<string, any>
+
+    constructor(dbpool: mysql.Pool, tblname: string) {
+      super(dbpool, tblname)
+      this.cache = new LRUCache<string, any>({ maxSize: 100_000, })
+    }
+
+    abstract get(addr: string): Promise<any>
 }
 
 export interface IAddressStore {
