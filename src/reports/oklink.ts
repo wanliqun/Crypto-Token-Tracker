@@ -13,5 +13,7 @@ export class OkLinkReporter extends BaseReporter {
     ) {
         super(dbpool, transferStore, addrStore)
         this.chain = chain
+        this.top50FlowSummaryCsvFileName = `top50-flow-summary-oklink-${chain}.csv`
+        this.cexFlowStatementCsvPrefix = `cex-flow-oklink-${chain}`
     }
 }

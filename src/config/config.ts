@@ -10,6 +10,10 @@ import {OklinkCrawler} from '../crawlers/oklink'
 import {IAddressStore} from '../store/store'
 import {TronTracker} from '../tracker/tron'
 import { EthTracker } from '../tracker/eth'
+import {OkLinkReporter} from '../reports/oklink'
+import {IReporter} from '../reports/interface'
+import { TronScanReporter } from '../reports/tronscan'
+import { ITracker } from '../tracker/interface'
 
 const chainTron = 'TRX'
 const chainEth = 'ETH'
@@ -72,15 +76,26 @@ export const getTronCrawler = async (dbpool: mysql.Pool): Promise<ICrawler> => {
 }
 
 // factory method to get TRON tracker
-export const getTronTracker = async (dbpool: mysql.Pool, workerpool: IWorkerPool, crawler: ICrawler) => {
+export const getTronTracker = async (dbpool: mysql.Pool, workerpool: IWorkerPool, crawler: ICrawler): Promise<TronTracker> => {
   const addrStore = await (confj.tron.data_source == 'oklink' ?
     OklinkAddressStore.singleton(dbpool, chainTron) : TronScanAddressStore.singleton(dbpool))
   return new TronTracker(dbpool, addrStore, workerpool, crawler, confj.max_out_depth, confj.max_in_depth)
 }
 
 // factory method to get TRON reporter
-export const getTronReporter = async (dbpool: mysql.Pool) => {
-  
+export const getTronReporter = async (dbpool: mysql.Pool): Promise<IReporter> => {
+  if (confj.tron.data_source == 'oklink') { // data source from oklink?
+    const transferStore = await OklinkTokenTransferStore.singleton(dbpool, chainTron)
+    const addrStore = await OklinkAddressStore.singleton(dbpool, chainTron)
+
+    return new OkLinkReporter(chainTron, dbpool, transferStore, addrStore)
+  }
+
+  // otherwise, use tronscan as data source
+  const transferStore = await TronScanTokenTransferStore.singleton(dbpool)
+  const addrStore = await TronScanAddressStore.singleton(dbpool)
+
+  return new TronScanReporter(dbpool, transferStore, addrStore)
 }
 
 // factory method to get ETH crawler

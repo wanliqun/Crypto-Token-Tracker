@@ -8,6 +8,7 @@
 /lib
 /package-lock.json
 /tmp
+/output
 node_modules
 .github
 .vscode

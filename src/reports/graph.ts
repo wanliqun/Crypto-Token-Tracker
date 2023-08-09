@@ -1,23 +1,23 @@
 import { Stack } from 'stack-typescript';
 
-interface IGraphEdge<T> {
+export interface IGraphEdge<T> {
   from: Node<T> | null
   to: Node<T>
-  weight: number
+  weight: any
 }
 
 export class Node<T> {
     data: T;
-    adjList: Map<Node<T>, number>;
+    adjList: Map<Node<T>, any>;
     comparator: (a: T, b: T) => number;
   
     constructor(data: T, comparator: (a: T, b: T) => number) {
       this.data = data;
-      this.adjList = new Map<Node<T>, number>();
+      this.adjList = new Map<Node<T>, any>();
       this.comparator = comparator;
     }
   
-    addAdjacent(node: Node<T>, weight: number): void {
+    addAdjacent(node: Node<T>, weight: any): void {
         this.adjList.set(node, weight)
     }
   
@@ -110,7 +110,7 @@ export class Graph<T> {
    * @param {T} start
    * @returns
    */
-  depthFirstTraverseEdges(first: T, traverse: (edge: IGraphEdge<T>)=>(void)) {
+  async depthFirstTraverseEdges(first: T, traverse: (edge: IGraphEdge<T>, visited: Map<T, boolean>)=>(Promise<void>)) {
     const startN = this.nodes.get(first)
     if (!startN) return
 
@@ -121,7 +121,7 @@ export class Graph<T> {
     while (visitEdges.length != 0) {
       const edge = visitEdges.pop()
       if (edge && !visited.has(edge.to.data)) {
-        traverse(edge)
+        await traverse(edge, visited)
         visited.set(edge.to.data, true)
         edge.to.adjList.forEach((weight: number, node: Node<T>)=>{
           visitEdges.push({from: edge.to, to: node, weight: weight})

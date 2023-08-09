@@ -49,11 +49,11 @@ export function identityCex(addrTag: string): string | undefined {
     return
   }
 
-  if (addrTag.toLowerCase() in ["okx", "okex"]) {
+  if (["okx", "okex"].includes(addrTag.toLowerCase())) {
     return "OKX"
   }
 
-  if (addrTag.toLowerCase() in ["mxc", "mexc"]) {
+  if (["mxc", "mexc"].includes(addrTag.toLowerCase())) {
     return "MXC"
   }
 
