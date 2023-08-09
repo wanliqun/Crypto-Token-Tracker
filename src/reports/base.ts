@@ -41,6 +41,11 @@ export abstract class BaseReporter implements IReporter{
 
       await this.collect(context.address, context, graph, root, 0)
 
+      if (root.adjList?.size == 0) {
+        logger.info("No money flows collected for report", {context})
+        return
+      }
+
       const flowSummay: Map<string, number> = new Map<string, number>()
       const cexFlowStatements: Map<string, IGraphEdge<string>[]> = new Map<string, IGraphEdge<string>[]>()
 
@@ -58,7 +63,7 @@ export abstract class BaseReporter implements IReporter{
         }
 
         const meta = await this.addrStore.get(edge.to.data)
-        const cex = identityCex(meta.entity_tag) ?? ""
+        const cex = identityCex(meta?.entity_tag) ?? ""
         if (BaseReporter.concernedCexs.includes(cex)) {
           if (edge.weight[1] < BaseReporter.minFlowAmount) {
             return
@@ -112,7 +117,7 @@ export abstract class BaseReporter implements IReporter{
 
     for (const [k, v] of [...sortedFlowSummay].slice(0, 50)) {
       const meta = await this.addrStore.get(k)
-      topFlowStats.push({ addr:k, tag: meta.entity_tag ?? "", contract: meta.is_contract === 1, amount: v })
+      topFlowStats.push({ addr:k, tag: meta?.entity_tag ?? "", contract: meta?.is_contract === 1, amount: v })
     }
 
     let writer = csvWriter.createObjectCsvWriter({
