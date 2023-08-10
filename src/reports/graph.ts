@@ -23,7 +23,7 @@ export class Node<T> {
   
     removeAdjacent(data: T) {
         for (const node of this.adjList.keys()) {
-            if ( this.comparator(node.data, data) === 0) {
+            if (this.comparator(node.data, data) === 0) {
                 this.adjList.delete(node)
                 break
             }
@@ -82,7 +82,7 @@ export class Graph<T> {
      * @param {T} source
      * @param {T} destination
      */
-    addEdge(source: T, destination: T, weight: number): void {
+    addEdge(source: T, destination: T, weight: any): void {
       const sourceNode = this.addNode(source);
       const destinationNode = this.addNode(destination);
   
@@ -107,7 +107,7 @@ export class Graph<T> {
   /**
    * Depth-first traverse the edges
    *
-   * @param {T} start
+   * @param {T} first
    * @returns
    */
   async depthFirstTraverseEdges(first: T, traverse: (edge: IGraphEdge<T>, visited: Map<T, boolean>)=>(Promise<void>)) {
@@ -116,14 +116,14 @@ export class Graph<T> {
 
     const visited: Map<T, boolean> = new Map();
     const visitEdges: Stack<IGraphEdge<T>> = new Stack<IGraphEdge<T>>()
-    visitEdges.push({from: null, to: startN, weight: 0})
+    visitEdges.push({from: null, to: startN, weight: null})
 
     while (visitEdges.length != 0) {
       const edge = visitEdges.pop()
       if (edge && !visited.has(edge.to.data)) {
         await traverse(edge, visited)
         visited.set(edge.to.data, true)
-        edge.to.adjList.forEach((weight: number, node: Node<T>)=>{
+        edge.to.adjList.forEach((weight: any, node: Node<T>)=>{
           visitEdges.push({from: edge.to, to: node, weight: weight})
         })
       }

@@ -17,6 +17,8 @@ export abstract class BaseReporter implements IReporter{
     protected transferStore: ITokenTransferStore
     protected addrStore: IAddressStore
 
+    protected collectTracking: Map<string, any>
+
     protected top50FlowSummaryCsvFileName: string
     protected cexFlowStatementCsvPrefix: string
 
@@ -24,6 +26,8 @@ export abstract class BaseReporter implements IReporter{
       this.dbpool = dbpool
       this.transferStore = transferStore
       this.addrStore = addrStore
+
+      this.collectTracking = new  Map<string, any>()
 
       this.top50FlowSummaryCsvFileName = "top50-flow-summary.csv"
       this.cexFlowStatementCsvPrefix = "cex-flow"
@@ -42,7 +46,7 @@ export abstract class BaseReporter implements IReporter{
       await this.collect(context.address, context, graph, root, 0)
 
       if (root.adjList?.size == 0) {
-        logger.info("No money flows collected for report", {context})
+        logger.info("No transfer flows collected for reporting", {context})
         return
       }
 
@@ -136,12 +140,18 @@ export abstract class BaseReporter implements IReporter{
   // collect cash flow
   protected async collect(
     address: string, context: IReportContext, graph: Graph<string>, node: Node<string>, level: number) {
+      if (this.collectTracking.has(address)) {
+        return
+      }
+
       if (context.level >= 0 && level > context.level) {
         return
       }
 
       const cntAddrs = await this.transferStore.queryCounterAddresses(address, context.type)
-      if (!cntAddrs) {
+      this.collectTracking.set(address, true)
+
+      if (!cntAddrs || cntAddrs.length == 0) {
         return
       }
 
