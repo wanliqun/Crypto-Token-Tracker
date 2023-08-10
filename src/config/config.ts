@@ -111,3 +111,11 @@ export const getEthTracker = async (dbpool: mysql.Pool, workerpool: IWorkerPool,
   const addrStore = await OklinkAddressStore.singleton(dbpool, chainEth)
   return new EthTracker(dbpool, addrStore, workerpool, crawler, confj.max_out_depth, confj.max_in_depth)
 }
+
+// factory method to get ETH reporter
+export const getEthReporter = async (dbpool: mysql.Pool): Promise<IReporter> => {
+  const transferStore = await OklinkTokenTransferStore.singleton(dbpool, chainEth)
+  const addrStore = await OklinkAddressStore.singleton(dbpool, chainEth)
+
+  return new OkLinkReporter(chainEth, dbpool, transferStore, addrStore)
+}
