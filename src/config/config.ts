@@ -14,6 +14,9 @@ import {OkLinkReporter} from '../reports/oklink'
 import {IReporter} from '../reports/interface'
 import { TronScanReporter } from '../reports/tronscan'
 import { ITracker } from '../tracker/interface'
+import { IMarker } from '../marker/interface'
+import { OkLinkMarker } from '../marker/oklink'
+import { TronScanMarker } from '../marker/tronscan'
 
 const chainTron = 'TRX'
 const chainEth = 'ETH'
@@ -98,6 +101,22 @@ export const getTronReporter = async (dbpool: mysql.Pool): Promise<IReporter> =>
   return new TronScanReporter(dbpool, transferStore, addrStore)
 }
 
+// factory method to get TRON marker
+export const getTronMarker = async (dbpool: mysql.Pool): Promise<IMarker> => {
+  if (confj.tron.data_source == 'oklink') { // data source from oklink?
+    const transferStore = await OklinkTokenTransferStore.singleton(dbpool, chainTron)
+    const addrStore = await OklinkAddressStore.singleton(dbpool, chainTron)
+
+    return new OkLinkMarker(chainTron, dbpool, transferStore, addrStore)
+  }
+
+  // otherwise, use tronscan as data source
+  const transferStore = await TronScanTokenTransferStore.singleton(dbpool)
+  const addrStore = await TronScanAddressStore.singleton(dbpool)
+
+  return new TronScanMarker(dbpool, transferStore, addrStore)
+}
+
 // factory method to get ETH crawler
 export const getEthCrawler = async (dbpool: mysql.Pool): Promise<ICrawler> => {
   const transferStore = await OklinkTokenTransferStore.singleton(dbpool, chainEth)
@@ -118,4 +137,12 @@ export const getEthReporter = async (dbpool: mysql.Pool): Promise<IReporter> => 
   const addrStore = await OklinkAddressStore.singleton(dbpool, chainEth)
 
   return new OkLinkReporter(chainEth, dbpool, transferStore, addrStore)
+}
+
+// factory method to get ETH marker
+export const getEthMarker = async (dbpool: mysql.Pool): Promise<IMarker> => {
+  const transferStore = await OklinkTokenTransferStore.singleton(dbpool, chainEth)
+  const addrStore = await OklinkAddressStore.singleton(dbpool, chainEth)
+
+  return new OkLinkMarker(chainEth, dbpool, transferStore, addrStore)
 }
