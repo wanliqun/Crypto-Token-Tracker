@@ -52,4 +52,5 @@ export interface IAddressStore {
 export interface ITokenTransferStore {
   queryCounterAddresses(addr: string, ctype: FlowType): Promise<any>
   getMoneyFlowInfo(from: string, to: string): Promise<any>
+  getTotalFlowAmount(addr: string, ctype: FlowType): Promise<any>
 }

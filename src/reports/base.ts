@@ -3,126 +3,126 @@ import { IAddressStore, ITokenTransferStore } from '../store/store'
 import { FlowType } from '../const';
 import { logger } from '../config/config';
 import { IReporter, IReportContext } from "./interface";
-import { StrGraph, Graph, Node, IGraphEdge } from './graph';
+import async from 'async';
 import fs from "fs";
 import * as csvWriter from "csv-writer";
 import { identityCex } from '../util/addr-meta';
+import {
+  Heap,
+  MinHeap,
+  MaxHeap,
+  ICompare,
+  IGetCompareValue,
+} from '@datastructures-js/heap';
+
+interface FlowStatement{from: string, to:string, amount:number}
 
 export abstract class BaseReporter implements IReporter{
-    static outputDir = "./output"
-    static concernedCexs = ['Binance', 'Kucoin', 'Huobi', 'OKX', 'MXC']
-    static minFlowAmount = 10000
+  static outputDir = "./output"
+  static minFlowAmount = 10_000
+  static concernedCexs = ['Binance', 'Kucoin', 'Huobi', 'OKX', 'MXC']
 
-    protected dbpool: mysql.Pool
-    protected transferStore: ITokenTransferStore
-    protected addrStore: IAddressStore
+  protected dbpool: mysql.Pool
+  protected transferStore: ITokenTransferStore
+  protected addrStore: IAddressStore
 
-    protected collectTracking: Map<string, any>
+  protected collectTracking: Map<string, boolean>
+  protected trackingFlow: Map<string, number>
+  protected cexFlowStatement: Map<string, FlowStatement[]>
 
-    protected top50FlowSummaryCsvFileName: string
-    protected cexFlowStatementCsvPrefix: string
+  protected top50FlowSummaryCsvFileName: string
+  protected cexFlowStatementCsvPrefix: string
 
-    constructor(dbpool: mysql.Pool, transferStore: ITokenTransferStore, addrStore: IAddressStore) {
-      this.dbpool = dbpool
-      this.transferStore = transferStore
-      this.addrStore = addrStore
+  constructor(dbpool: mysql.Pool, transferStore: ITokenTransferStore, addrStore: IAddressStore) {
+    this.dbpool = dbpool
+    this.transferStore = transferStore
+    this.addrStore = addrStore
 
-      this.collectTracking = new  Map<string, any>()
+    this.collectTracking = new  Map<string, boolean>()
+    this.trackingFlow = new Map<string, number>()
+    this.cexFlowStatement = new Map<string, FlowStatement[]>()
 
-      this.top50FlowSummaryCsvFileName = "top50-flow-summary.csv"
-      this.cexFlowStatementCsvPrefix = "cex-flow"
+    this.top50FlowSummaryCsvFileName = "top50-flow-summary.csv"
+    this.cexFlowStatementCsvPrefix = "cex-flow"
 
-      // prepare the `output` folder
-      if (!fs.existsSync(BaseReporter.outputDir)) {
-        fs.mkdirSync(BaseReporter.outputDir, { recursive: true });
-        logger.debug("Report output folder created", {dir: BaseReporter.outputDir})
-      }
+    // prepare the `output` folder
+    if (!fs.existsSync(BaseReporter.outputDir)) {
+      fs.mkdirSync(BaseReporter.outputDir, { recursive: true });
+      logger.debug("Report output folder created", {dir: BaseReporter.outputDir})
     }
-
-    async report(context: IReportContext) {
-      const graph = new StrGraph()
-      const root = graph.addNode(context.address)
-
-      await this.collect(context.address, context, graph, root, 0)
-
-      if (root.adjList?.size == 0) {
-        logger.info("No transfer flows collected for reporting", {context})
-        return
-      }
-
-      const flowSummay: Map<string, number> = new Map<string, number>()
-      const cexFlowStatements: Map<string, IGraphEdge<string>[]> = new Map<string, IGraphEdge<string>[]>()
-
-      await graph.depthFirstTraverseEdges(context.address, async (edge: IGraphEdge<string>, visited: Map<string, boolean>)=>{
-        let numAcyclicAdj = 0
-        for (const n of edge.to.adjList.keys()) {
-          if (!visited.has(n.data)) {
-            numAcyclicAdj++
-          }
-        }
-
-        if (numAcyclicAdj == 0) { 
-          let oldv = flowSummay.get(edge.to.data) ?? 0
-          flowSummay.set(edge.to.data, oldv + edge.weight[1])
-        }
-
-        const meta = await this.addrStore.get(edge.to.data)
-        const cex = identityCex(meta?.entity_tag) ?? ""
-        if (BaseReporter.concernedCexs.includes(cex)) {
-          if (edge.weight[1] < BaseReporter.minFlowAmount) {
-            return
-          }
-
-          if (!cexFlowStatements.has(cex)) {
-            cexFlowStatements.set(cex, [])
-          }
-          cexFlowStatements.get(cex)!.push(edge)
-        }
-      })
-
-      await this.generatetop50FlowSummary(flowSummay)
-      await this.generateMainstreamCexFlowStatement(cexFlowStatements)
   }
 
-  protected async generateMainstreamCexFlowStatement(cexFlowStatements: Map<string, IGraphEdge<string>[]>) { 
-    for (const [cex, flows] of cexFlowStatements) {
-      flows.sort((a: IGraphEdge<string>, b: IGraphEdge<string>): number=>{
-        return b.weight[1] - a.weight[1]
-      })
+  async report(context: IReportContext) {
+    const startTime = new Date()
 
-      const flowStatements: {fromAddr: string, cexAddr: string, cexTag: boolean, amount: number}[] = []
-      for (const flow of flows) {
-        const meta = await this.addrStore.get(flow.to.data)
-        flowStatements.push({
-          fromAddr: flow.from!.data, 
-          cexAddr: flow.to.data, 
-          cexTag: meta.entity_tag,
-          amount: flow.weight[1],
-        })
-      }
+    logger.info("Collecting transfer flow for reporting...", {context})
+    await this.collect(context.address, context, 0)
+
+    logger.info("Generating Top50 transfer flow summary...")
+    await this.generatetop50FlowSummary()
+
+    logger.info("Generating mainstream CEX transfer flow statements...")
+    await this.generateMainstreamCexFlowStatement()
+
+    let timeDuration = new Date().getTime () - startTime.getTime ();
+    logger.info(`Reporing ended with duration ${timeDuration} ms`)
+  }
+
+  protected async generateMainstreamCexFlowStatement() {
+    for (const [cex, statements] of this.cexFlowStatement) {
+      statements.sort((a: FlowStatement, b:FlowStatement): number => {
+        return b.amount - a.amount
+      })
 
       let writer = csvWriter.createObjectCsvWriter({
         path: `output/${this.cexFlowStatementCsvPrefix}-${cex}.csv`,
         header: [
-          { id: "fromAddr", title: "FROM ADDRESS" },
-          { id: "cexAddr", title: "CEX ADDRESS" },
-          { id: "cexTag", title: "CEX TAG" },
+          { id: "from", title: "FROM ADDRESS" },
+          { id: "to", title: "CEX ADDRESS" },
           { id: "amount", title: "TOTAL AMOUNT" },
         ],
       });
   
-      await writer.writeRecords(flowStatements)
+      await writer.writeRecords(statements)
     }
   }
+  
+  protected async generatetop50FlowSummary() {
+    interface IFlowStat {addr: string, amount: number}
+    const top50StatsHeap = new MinHeap<IFlowStat>((s: IFlowStat) => s.amount);
+    
+    logger.info("Calculate TOP50 flow statistics", {numFlowRecords: this.trackingFlow.size})
 
-  protected async generatetop50FlowSummary(flowSummay: Map<string, number>) {
-    const sortedFlowSummay = new Map([...flowSummay].sort((a, b) => b[1] - a[1]));
-    const topFlowStats: {addr: string, tag: string, contract: boolean, amount: number}[] = []
+    for (const [addr, amount] of this.trackingFlow) {
+      if (amount <= 0) continue
 
-    for (const [k, v] of [...sortedFlowSummay].slice(0, 50)) {
-      const meta = await this.addrStore.get(k)
-      topFlowStats.push({ addr:k, tag: meta?.entity_tag ?? "", contract: meta?.is_contract === 1, amount: v })
+      if (top50StatsHeap.size() < 50) {
+        top50StatsHeap.insert({addr: addr, amount: amount})
+        continue
+      }
+
+      const htop = top50StatsHeap.top()
+      if (htop && htop.amount < amount) {
+        top50StatsHeap.pop()
+        top50StatsHeap.insert({addr: addr, amount: amount})
+      }
     }
+    this.trackingFlow.clear()
+
+    const topFlowStats: {addr: string, tag: string, contract: boolean, amount: number}[] = []
+    while (top50StatsHeap.size() > 0) {
+      const htop = top50StatsHeap.pop()
+      const meta = await this.addrStore.get(htop!.addr)
+
+      topFlowStats.unshift({
+        addr: htop!.addr, 
+        amount: htop!.amount,
+        tag: meta?.entity_tag ?? "",
+        contract: meta?.is_contract === 1,
+      })
+    }
+
+    logger.info("Writting Top50 flow statistics to CSV", {fileName:this.top50FlowSummaryCsvFileName})
 
     let writer = csvWriter.createObjectCsvWriter({
       path: `output/${this.top50FlowSummaryCsvFileName}`,
@@ -137,52 +137,53 @@ export abstract class BaseReporter implements IReporter{
     await writer.writeRecords(topFlowStats)
   }
 
-  // collect cash flow
-  protected async collect(
-    address: string, context: IReportContext, graph: Graph<string>, node: Node<string>, level: number) {
-      if (this.collectTracking.has(address)) {
-        return
+  protected async collect(address: string, context: IReportContext, curLevel: number) {
+    if (this.collectTracking.has(address)) {
+      return
+    }
+
+    if (context.level >= 0 && curLevel > context.level) {
+      return
+    }
+
+    this.collectTracking.set(address, true)
+
+    const cntAddrs = await this.transferStore.queryCounterAddresses(address, FlowType.TransferOut)
+    if (!cntAddrs || cntAddrs.length == 0) {
+      return
+    }
+
+    const tasks: (() => Promise<any>)[] = []
+    for (const caddr of cntAddrs) {
+      const tinfo = await this.transferStore.getMoneyFlowInfo(address, caddr)
+      if (tinfo[1] != 0) {
+        const fromAmount = this.trackingFlow.get(address) ?? 0
+        this.trackingFlow.set(address, fromAmount - tinfo[1])
+
+        const toAmount = this.trackingFlow.get(caddr) ?? 0
+        this.trackingFlow.set(caddr, toAmount + tinfo[1])
       }
 
-      if (context.level >= 0 && level > context.level) {
-        return
-      }
-
-      const cntAddrs = await this.transferStore.queryCounterAddresses(address, context.type)
-      this.collectTracking.set(address, true)
-
-      if (!cntAddrs || cntAddrs.length == 0) {
-        return
-      }
-
-      logger.debug("Collecting for report", {address, context, level, numCntAddrs: cntAddrs.length})
-
-      //let promises = []
-      for (const caddr of cntAddrs) {
-        let [from, to] = [address, caddr]
-        if (context.type == FlowType.TransferIn) {
-          [from, to] = [to, from]
-        }
-
-        const info = await this.transferStore.getMoneyFlowInfo(from, to)
-        const cnode = graph.addNode(caddr)
-        node.addAdjacent(cnode, info)
-
+      if (tinfo[1] < BaseReporter.minFlowAmount) {
         const meta = await this.addrStore?.get(caddr)
-        if (meta?.is_contract) {
-          logger.debug('Skip contract address for tracking...', {caddr, meta})
-          continue
+        const cex = identityCex(meta?.entity_tag)
+        if (cex && BaseReporter.concernedCexs.includes(cex)) {
+          const cexStatements = this.cexFlowStatement.get(cex) ?? []
+          cexStatements.push({
+            from: address, to: caddr, amount: tinfo[1],
+          })
+          this.cexFlowStatement.set(cex, cexStatements)
         }
-
-        if (meta?.entity_tag) {
-            logger.debug('Skip entity-tagged address for tracking...', {caddr, meta})
-            continue
-        }
-
-        await this.collect(caddr, context, graph, cnode, level+1)
-        //promises.push(this.collect(caddr, context, graph, cnode, level+1))
       }
+
+      //await this.collect(caddr, context, curLevel+1)
+      tasks.push(async ()=>{
+        await this.collect(caddr, context, curLevel+1)
+      })
       
-      //Promise.all(promises)
+    }
+
+    await async.parallelLimit(tasks, 4)
+    //await async.parallel(tasks)
   }
 }

@@ -86,6 +86,10 @@ export class TronScanTokenTransferStore extends BaseStore implements ITokenTrans
                 VALUES ? ON DUPLICATE KEY UPDATE created_at = NOW()`, [txns],
       )
     }
+
+    async getTotalFlowAmount(addr: string, ctype: FlowType) {
+      throw new Error("not implemented yet")
+    }
 }
 
 export class TronScanAddressStore extends BaseAddressStore {

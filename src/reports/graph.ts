@@ -123,6 +123,7 @@ export class Graph<T> {
       if (edge && !visited.has(edge.to.data)) {
         await traverse(edge, visited)
         visited.set(edge.to.data, true)
+
         edge.to.adjList.forEach((weight: any, node: Node<T>)=>{
           visitEdges.push({from: edge.to, to: node, weight: weight})
         })

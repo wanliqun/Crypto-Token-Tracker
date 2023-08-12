@@ -29,7 +29,7 @@ export abstract class BaseMarker implements IMarker {
         await this.collect(token, address, maxLevel, 0, suspicious)
 
         const data = {token, address, maxLevel, suspicious}
-        
+
         logger.info("Mass tiny pay suspicious address marked", data)
         fs.writeFileSync("suspicious", JSON.stringify(data))
     }
@@ -49,9 +49,8 @@ export abstract class BaseMarker implements IMarker {
             return
         }
 
-        const cntAddrs = await this.transferStore.queryCounterAddresses(address, FlowType.TransferIn)
         this.collectTracking.set(address, true)
-
+        const cntAddrs = await this.transferStore.queryCounterAddresses(address, FlowType.TransferIn)
         if (!cntAddrs || cntAddrs.length == 0) {
             return
         }

@@ -97,6 +97,21 @@ export class OklinkTokenTransferStore extends BaseStore implements ITokenTransfe
 
       return [parseFloat(values[0].txn_count), parseFloat(values[0].total_value)];
     }
+
+    async getTotalFlowAmount(addr: string, ctype: FlowType) {
+      const field = ctype === FlowType.TransferIn ?"to_addr": "from_addr"
+      const [rows] = await this.dbpool.promise().query(
+        `SELECT sum(txn_count) as total_txns, sum(total_value) as total_sum FROM ${this.tableName} WHERE ${field}=?`,
+        addr,
+      )
+      
+      const values = rows as mysql.RowDataPacket[]
+      if (values?.length === 0) {
+        return [0, 0]
+      }
+
+      return [parseFloat(values[0].total_txns), parseFloat(values[0].total_sum)];
+    }
 }
 
 export class OklinkAddressStore extends BaseAddressStore {

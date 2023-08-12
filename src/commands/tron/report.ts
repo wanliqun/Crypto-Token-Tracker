@@ -5,13 +5,6 @@ import { FlowType } from '../../const';
 
 export default class Track extends BaseCommand {
   static flags = {
-    tranferType: Flags.string({
-      char: 'f',
-      options: ['in', 'out'],
-      description: 'transfer type',
-      default: 'out',
-      required: false,
-    }),
     level: Flags.integer({
       char: 'l',
       description: 'tracking level',
@@ -32,13 +25,10 @@ export default class Track extends BaseCommand {
     const dbpool = await getMysqlPool()
     const reporter = await getTronReporter(dbpool)
 
-    const ttype = (flags.tranferType.toLowerCase() == 'in') ? FlowType.TransferIn : FlowType.TransferOut
-
     await reporter.report({
       token: flags.token,
       address: flags.address,
       level: flags.level,
-      type: ttype,
     })
 
     dbpool.end()
