@@ -164,7 +164,7 @@ export abstract class BaseReporter implements IReporter{
         this.trackingFlow.set(caddr, toAmount + tinfo[1])
       }
 
-      if (tinfo[1] < BaseReporter.minFlowAmount) {
+      if (tinfo[1] > BaseReporter.minFlowAmount) {
         const meta = await this.addrStore?.get(caddr)
         const cex = identityCex(meta?.entity_tag)
         if (cex && BaseReporter.concernedCexs.includes(cex)) {
