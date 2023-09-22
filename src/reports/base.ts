@@ -14,6 +14,7 @@ import {
   ICompare,
   IGetCompareValue,
 } from '@datastructures-js/heap';
+import LargeMap from 'large-map';
 
 interface FlowStatement{from: string, to:string, amount:number}
 
@@ -26,8 +27,8 @@ export abstract class BaseReporter implements IReporter{
   protected transferStore: ITokenTransferStore
   protected addrStore: IAddressStore
 
-  protected collectTracking: Map<string, boolean>
-  protected trackingFlow: Map<string, number>
+  protected collectTracking: LargeMap<string, boolean>
+  protected trackingFlow: LargeMap<string, number>
   protected cexFlowStatement: Map<string, FlowStatement[]>
 
   protected top50FlowSummaryCsvFileName: string
@@ -38,8 +39,8 @@ export abstract class BaseReporter implements IReporter{
     this.transferStore = transferStore
     this.addrStore = addrStore
 
-    this.collectTracking = new  Map<string, boolean>()
-    this.trackingFlow = new Map<string, number>()
+    this.collectTracking = new LargeMap<string, boolean>()
+    this.trackingFlow = new LargeMap<string, number>()
     this.cexFlowStatement = new Map<string, FlowStatement[]>()
 
     this.top50FlowSummaryCsvFileName = "top50-flow-summary.csv"
