@@ -1,5 +1,5 @@
 import {BaseCommand} from '../base'
-import {getEthTracker, getMysqlPool, getWorkerPool, getEthCrawler} from '../../config/config'
+import {logger, getEthTracker, getMysqlPool, getWorkerPool, getEthCrawler} from '../../config/config'
 
 export default class Track extends BaseCommand {
   static description = 'track token transfers for db persistence'
@@ -19,6 +19,12 @@ export default class Track extends BaseCommand {
     crawler.setObserver(tracker)
 
     // start tracking
-    await tracker.track(flags.token, flags.address)
+    const ctx = { token: flags.token, address: flags.address}
+    tracker.track(ctx)
+
+    await tracker.monitorRunLoop(ctx)
+    logger.info('Tracker done', {ctx})
+
+    dbpool.end()
   }
 }

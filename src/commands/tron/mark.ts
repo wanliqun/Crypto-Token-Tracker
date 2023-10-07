@@ -25,7 +25,12 @@ export default class Mark extends BaseCommand {
     const dbpool = await getMysqlPool()
     const marker = await getTronMarker(dbpool)
 
-    await marker.markSuspicious(flags.token, flags.address, flags.level)
+    await marker.markSuspicious({
+      token: flags.token,
+      address: flags.address,
+      level: flags.level,
+    })
+    
     dbpool.end()
   }
 }

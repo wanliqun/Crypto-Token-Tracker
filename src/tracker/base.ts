@@ -1,6 +1,6 @@
 import * as mysql from 'mysql2'
 import {logger} from '../config/config'
-import {ITracker} from './interface'
+import {ITrackContext, ITracker} from './interface'
 import {/* AsyncQueueWorkerPool, ITask, */ IWorkerPool} from '../workers/workerpool'
 import {registerGracefulShutdown} from '../util/graceful'
 import { ICrawlTask, ICrawler} from '../crawlers/interface'
@@ -57,23 +57,36 @@ export abstract class BaseTracker implements ITracker {
       this.dbpool.end()
     }
 
-    async track(token: string, addr: string) {
-      logger.debug('Tracker starting...', {token, addr})
+    async track(ctx: ITrackContext) {
+      logger.debug('Tracker starting...', { 
+        ctx, maxOutDepth: this.maxOutDepth, maxInDepth: this.maxInDepth,
+      })
 
       if (this.maxOutDepth > 0) {
-        this.traverseOut(token, addr, 0)
+        this.traverseOut(ctx.token, ctx.address, 0)
       }
 
       if (this.maxInDepth > 0) {
-        this.traverseIn(token, addr, 0)
+        this.traverseIn(ctx.token, ctx.address, 0)
       }
 
-      do {
-        const status = await this.workerPool.status()
-        logger.info('Refreshing tracking status', status)
+      await this.workerPool.onDrained()
+    }
 
-        await sleep(15_000)
-      } while (true)
+    async monitorRunLoop(
+      ctx: ITrackContext, 
+      statusUpdated: ((status: any) => void) | undefined = undefined, 
+      checkInterval: number = 15_000,
+    ) {
+      while (!await this.workerPool.idle()) {
+        const status = await this.workerPool.status()
+        statusUpdated = statusUpdated ?? ((status: any) => {
+          logger.info('Refreshing tracking status', {ctx, status})
+        })
+
+        statusUpdated(status)
+        await sleep(checkInterval)
+      }
     }
 
     traverseOut(token: string, address: string, level: number) {

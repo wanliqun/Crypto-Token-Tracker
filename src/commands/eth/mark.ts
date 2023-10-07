@@ -1,6 +1,7 @@
 import {BaseCommand} from '../base'
 import {Flags} from '@oclif/core'
 import {getMysqlPool, getEthMarker} from '../../config/config'
+import { IMarkContext } from '../../marker/interface';
 import { FlowType } from '../../const';
 
 export default class Mark extends BaseCommand {
@@ -25,7 +26,11 @@ export default class Mark extends BaseCommand {
     const dbpool = await getMysqlPool()
     const marker = await getEthMarker(dbpool)
 
-    await marker.markSuspicious(flags.token, flags.address, flags.level)
+    await marker.markSuspicious({
+      token: flags.token, 
+      address: flags.address, 
+      level: flags.level,
+    })
     dbpool.end()
   }
 }

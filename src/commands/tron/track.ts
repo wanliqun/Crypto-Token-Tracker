@@ -1,5 +1,6 @@
 import {BaseCommand} from '../base'
-import {getTronTracker, getMysqlPool, getWorkerPool, getTronCrawler} from '../../config/config'
+import { ITrackContext } from '../../tracker/interface'
+import {logger, getTronTracker, getMysqlPool, getWorkerPool, getTronCrawler} from '../../config/config'
 
 export default class Track extends BaseCommand {
   static description = 'track token transfers for db persistence'
@@ -19,6 +20,12 @@ export default class Track extends BaseCommand {
     crawler.setObserver(tracker)
 
     // start tracking
-    await tracker.track(flags.token, flags.address)
+    const ctx = { token: flags.token, address: flags.address}
+    tracker.track(ctx)
+
+    await tracker.monitorRunLoop(ctx)
+    logger.info('Tracker done', {ctx})
+
+    dbpool.end()
   }
 }

@@ -75,11 +75,10 @@ export class TronScanCrawler extends BaseCrawler {
           await sleep(1500)
           continue
         }
-
        
         start += result.data.token_transfers.length
         if (start >= result.data.total) {
-          logger.debug('All token transfer crawls are done', {start, total: result.data.total, task})
+          logger.debug('All token transfer crawls are done', {params, total: result.data.total})
           break
         }
 
@@ -135,7 +134,7 @@ export class TronScanCrawler extends BaseCrawler {
         await this._saveAddress(token, {
           addr: transfer.from_address,
           is_contract: transfer.fromAddressIsContract ? 1 : 0,
-          entity_tag: addrTag ? addrTag : '',
+          entity_tag: addrTag || '',
         })
       }
 
@@ -145,24 +144,16 @@ export class TronScanCrawler extends BaseCrawler {
         await this._saveAddress(token, {
           addr: transfer.to_address,
           is_contract: transfer.toAddressIsContract ? 1 : 0,
-          entity_tag: addrTag ? addrTag : '',
+          entity_tag: addrTag || '',
         })
       }
     }
 
     async _saveAddress(token: string, addrInfo: {addr: string, is_contract: number, entity_tag: string}) {
       if (!addrInfo.entity_tag) { // try to fetch tag from oklink
-        for (let i = 0; i < 3; i++) {
-          try {
-            const info = await getAddrInfoFromOkLink(token, addrInfo.addr, 'TRX')
-            if (info?.tag) {
-              addrInfo.entity_tag = info.tag
-            }
-
-            break
-          } catch {
-            await sleep(1000)
-          }
+        const info = await getAddrInfoFromOkLink(token, addrInfo.addr, 'TRX')
+        if (info?.tag) {
+          addrInfo.entity_tag = info.tag
         }
       }
 

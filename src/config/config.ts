@@ -7,19 +7,29 @@ import {TronScanCrawler} from '../crawlers/tronscan'
 import {TronScanAddressStore, TronScanTokenTransferStore} from '../store/tron'
 import {OklinkAddressStore, OklinkTokenTransferStore} from '../store/oklink'
 import {OklinkCrawler} from '../crawlers/oklink'
-import {IAddressStore} from '../store/store'
 import {TronTracker} from '../tracker/tron'
 import { EthTracker } from '../tracker/eth'
 import {OkLinkReporter} from '../reports/oklink'
 import {IReporter} from '../reports/interface'
 import { TronScanReporter } from '../reports/tronscan'
-import { ITracker } from '../tracker/interface'
 import { IMarker } from '../marker/interface'
 import { OkLinkMarker } from '../marker/oklink'
 import { TronScanMarker } from '../marker/tronscan'
 
 const chainTron = 'TRX'
 const chainEth = 'ETH'
+
+if (process.env.LOG_LEVEL) {
+  confj.log_level = process.env.LOG_LEVEL
+}
+
+if (process.env.MAX_TRACK_OUT_DEPTH) {
+  confj.max_out_depth = Number(process.env.MAX_TRACK_OUT_DEPTH)
+}
+
+if (process.env.MAX_TRACK_IN_DEPTH) {
+  confj.max_in_depth = Number(process.env.MAX_TRACK_IN_DEPTH)
+}
 
 export const logger = createLogger({
   level: confj.log_level,
@@ -34,6 +44,10 @@ export const logger = createLogger({
     // new transports.File({ filename: 'error.log', level: 'error' }),
   ],
 })
+
+export const getMaxConcurrency = () => {
+  return confj.worker_pool_size
+}
 
 // factory method to get MySQL database connection.
 export const getMysqlPool = async () => {
@@ -79,10 +93,18 @@ export const getTronCrawler = async (dbpool: mysql.Pool): Promise<ICrawler> => {
 }
 
 // factory method to get TRON tracker
-export const getTronTracker = async (dbpool: mysql.Pool, workerpool: IWorkerPool, crawler: ICrawler): Promise<TronTracker> => {
+export const getTronTracker = async (
+  dbpool: mysql.Pool, workerpool: IWorkerPool, crawler: ICrawler,
+  maxOutDepth: number | undefined = undefined,
+  maxInDepth: number | undefined = undefined): Promise<TronTracker> => {
   const addrStore = await (confj.tron.data_source == 'oklink' ?
-    OklinkAddressStore.singleton(dbpool, chainTron) : TronScanAddressStore.singleton(dbpool))
-  return new TronTracker(dbpool, addrStore, workerpool, crawler, confj.max_out_depth, confj.max_in_depth)
+    OklinkAddressStore.singleton(dbpool, chainTron) : TronScanAddressStore.singleton(dbpool)
+  )
+  return new TronTracker(
+    dbpool, addrStore, workerpool, crawler,
+    maxOutDepth ?? confj.max_out_depth,
+    maxInDepth ?? confj.max_in_depth,
+  )
 }
 
 // factory method to get TRON reporter

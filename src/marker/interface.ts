@@ -1,5 +1,9 @@
-import {FlowType} from "../const"
+export interface IMarkContext {
+    token: string
+    address: string
+    level: number
+}
 
 export interface IMarker {
-    markSuspicious(token: string, address: string, level: number): Promise<any>
+    markSuspicious(ctx: IMarkContext): Promise<any>
 }

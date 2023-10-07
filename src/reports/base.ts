@@ -1,7 +1,7 @@
 import mysql from 'mysql2'
 import { IAddressStore, ITokenTransferStore } from '../store/store'
 import { FlowType } from '../const';
-import { logger } from '../config/config';
+import { logger, getMaxConcurrency } from '../config/config';
 import { IReporter, IReportContext } from "./interface";
 import async from 'async';
 import fs from "fs";
@@ -181,10 +181,8 @@ export abstract class BaseReporter implements IReporter{
       tasks.push(async ()=>{
         await this.collect(caddr, context, curLevel+1)
       })
-      
     }
 
-    await async.parallelLimit(tasks, 4)
-    //await async.parallel(tasks)
+    await async.parallelLimit(tasks, getMaxConcurrency())
   }
 }

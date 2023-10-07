@@ -76,7 +76,7 @@ export class OklinkCrawler extends BaseCrawler {
             logger.debug('No more token transfers to crawl', {params})
             break
           }
-
+          
           await this.handleTokenTransfers(result.data!.data, task, offset)
         } catch (error) {
           console.log(error)
@@ -161,18 +161,10 @@ export class OklinkCrawler extends BaseCrawler {
 
     async _saveAddress(token: string, addrInfo: {addr: string, is_contract: any | undefined, entity_tag: string}) {
       if (addrInfo.is_contract === undefined) {
-        for (let i = 0; i < 3; i++) {
-          try {
-            const info = await getAddrInfoFromOkLink(token, addrInfo.addr, this.chain)
-            addrInfo.is_contract = info?.isContract
-            if (!addrInfo.entity_tag && info?.tag) {
-              addrInfo.entity_tag = info.tag
-            }
-
-            break
-          } catch {
-            await sleep(1000)
-          }
+        const info = await getAddrInfoFromOkLink(token, addrInfo.addr, this.chain)
+        addrInfo.is_contract = info?.isContract
+        if (!addrInfo.entity_tag && info?.tag) {
+          addrInfo.entity_tag = info.tag
         }
       }
 
