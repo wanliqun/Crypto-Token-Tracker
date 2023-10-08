@@ -18,6 +18,20 @@ import LargeMap from 'large-map';
 
 interface FlowStatement{from: string, to:string, amount:number}
 
+type FlowStatementPath = FlowStatement[]
+function isFlowStatementPathBroken(path: FlowStatementPath): boolean {
+  let expectedFrom = path[0]?.from
+  for (const stmnt of path) {
+    if (stmnt.amount == 0 || expectedFrom != stmnt.from) {
+      return true
+    }
+
+    expectedFrom = stmnt.to
+  }
+
+  return false
+}
+
 export abstract class BaseReporter implements IReporter{
   static outputDir = "./output"
   static minFlowAmount = 10_000
@@ -30,6 +44,7 @@ export abstract class BaseReporter implements IReporter{
   protected collectTracking: LargeMap<string, boolean>
   protected trackingFlow: LargeMap<string, number>
   protected cexFlowStatement: Map<string, FlowStatement[]>
+  protected cexFlowStatementFullPath: Map<string, Map<string, FlowStatementPath[]>>
 
   protected top50FlowSummaryCsvFileName: string
   protected cexFlowStatementCsvPrefix: string
@@ -42,6 +57,7 @@ export abstract class BaseReporter implements IReporter{
     this.collectTracking = new LargeMap<string, boolean>()
     this.trackingFlow = new LargeMap<string, number>()
     this.cexFlowStatement = new Map<string, FlowStatement[]>()
+    this.cexFlowStatementFullPath = new Map<string, Map<string, FlowStatementPath[]>>
 
     this.top50FlowSummaryCsvFileName = "top50-flow-summary.csv"
     this.cexFlowStatementCsvPrefix = "cex-flow"
@@ -57,7 +73,7 @@ export abstract class BaseReporter implements IReporter{
     const startTime = new Date()
 
     logger.info("Collecting transfer flow for reporting...", {context})
-    await this.collect(context.address, context, 0)
+    await this.collect(context.address, context, 0, [])
 
     logger.info("Generating Top50 transfer flow summary...")
     await this.generatetop50FlowSummary()
@@ -71,20 +87,55 @@ export abstract class BaseReporter implements IReporter{
 
   protected async generateMainstreamCexFlowStatement() {
     for (const [cex, statements] of this.cexFlowStatement) {
+      const cexFlowStmtFullPath = this.cexFlowStatementFullPath.get(cex)
+      if (!cexFlowStmtFullPath) {
+        continue
+      }
+
       statements.sort((a: FlowStatement, b:FlowStatement): number => {
         return b.amount - a.amount
       })
 
-      let writer = csvWriter.createObjectCsvWriter({
-        path: `output/${this.cexFlowStatementCsvPrefix}-${cex}.csv`,
-        header: [
-          { id: "from", title: "FROM ADDRESS" },
-          { id: "to", title: "CEX ADDRESS" },
-          { id: "amount", title: "TOTAL AMOUNT" },
-        ],
-      });
-  
-      await writer.writeRecords(statements)
+      const records: (FlowStatement & { path: string })[] = []
+      for (const stmnt of statements) {
+        const validStmtPath = []
+        const flowStmtPath = cexFlowStmtFullPath?.get(stmnt.to) ?? []
+
+        for (const path of flowStmtPath) {
+          if (!isFlowStatementPathBroken(path)) {
+            validStmtPath.push(path)
+          }
+        }
+
+        if (validStmtPath.length == 0) {
+          continue
+        }
+
+        const lines = []
+        for (const path of validStmtPath) {
+          let line = `${path[0].from}`
+          for (const stmt of path) {
+            line += `->${stmnt.to}(${stmnt.amount})`
+          }
+          lines.push(line)
+        }
+
+        const lineStr = lines.join("\n")
+        records.push({path: `"${lineStr}"`, ...stmnt, })
+      }
+
+      if (records.length > 0) {
+        let writer = csvWriter.createObjectCsvWriter({
+          path: `output/${this.cexFlowStatementCsvPrefix}-${cex}.csv`,
+          header: [
+            { id: "from", title: "FROM ADDRESS" },
+            { id: "to", title: "CEX ADDRESS" },
+            { id: "amount", title: "TOTAL AMOUNT" },
+            { id: "path", title: "TRANSFER PATH" },
+          ],
+        });
+        await writer.writeRecords(records)
+      }
     }
   }
   
@@ -138,7 +189,7 @@ export abstract class BaseReporter implements IReporter{
     await writer.writeRecords(topFlowStats)
   }
 
-  protected async collect(address: string, context: IReportContext, curLevel: number) {
+  protected async collect(address: string, context: IReportContext, curLevel: number, transferFlows: FlowStatement[]) {
     if (this.collectTracking.has(address)) {
       return
     }
@@ -165,21 +216,28 @@ export abstract class BaseReporter implements IReporter{
         this.trackingFlow.set(caddr, toAmount + tinfo[1])
       }
 
+      const flowStmnt = { from: address, to: caddr, amount: tinfo[1], }
+
       if (tinfo[1] > BaseReporter.minFlowAmount) {
         const meta = await this.addrStore?.get(caddr)
         const cex = identityCex(meta?.entity_tag)
         if (cex && BaseReporter.concernedCexs.includes(cex)) {
           const cexStatements = this.cexFlowStatement.get(cex) ?? []
-          cexStatements.push({
-            from: address, to: caddr, amount: tinfo[1],
-          })
+          cexStatements.push(flowStmnt)
           this.cexFlowStatement.set(cex, cexStatements)
+
+          const cexStmtFullPath = this.cexFlowStatementFullPath.get(cex) ?? new Map<string, FlowStatementPath[]>()
+          const stmtFullPath = cexStmtFullPath.get(caddr) ?? []
+          stmtFullPath.push([...transferFlows, flowStmnt])
+
+          cexStmtFullPath.set(caddr, stmtFullPath)
+          this.cexFlowStatementFullPath.set(cex, cexStmtFullPath)
         }
       }
 
       //await this.collect(caddr, context, curLevel+1)
       tasks.push(async ()=>{
-        await this.collect(caddr, context, curLevel+1)
+        await this.collect(caddr, context, curLevel+1, [...transferFlows, flowStmnt])
       })
     }
 

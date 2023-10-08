@@ -21,14 +21,22 @@ const chainEth = 'ETH'
 
 if (process.env.LOG_LEVEL) {
   confj.log_level = process.env.LOG_LEVEL
+  console.log("Overridden with env LOG_LEVEL", confj.log_level)
 }
 
 if (process.env.MAX_TRACK_OUT_DEPTH) {
   confj.max_out_depth = Number(process.env.MAX_TRACK_OUT_DEPTH)
+  console.log("Overridden with env MAX_TRACK_OUT_DEPTH", confj.max_out_depth)
 }
 
 if (process.env.MAX_TRACK_IN_DEPTH) {
   confj.max_in_depth = Number(process.env.MAX_TRACK_IN_DEPTH)
+  console.log("Overridden with env MAX_TRACK_IN_DEPTH", confj.max_in_depth)
+}
+
+if (process.env.WORKER_POOL_SIZE) {
+  confj.worker_pool_size = Number(process.env.WORKER_POOL_SIZE)
+  console.log("Overridden with env WORKER_POOL_SIZE", confj.worker_pool_size)
 }
 
 export const logger = createLogger({
