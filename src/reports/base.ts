@@ -92,6 +92,8 @@ export abstract class BaseReporter implements IReporter{
         continue
       }
 
+      this.cexFlowStatementFullPath.delete(cex)
+
       statements.sort((a: FlowStatement, b:FlowStatement): number => {
         return b.amount - a.amount
       })
@@ -106,6 +108,8 @@ export abstract class BaseReporter implements IReporter{
             validStmtPath.push(path)
           }
         }
+
+        cexFlowStmtFullPath.delete(stmnt.to)
 
         if (validStmtPath.length == 0) {
           continue

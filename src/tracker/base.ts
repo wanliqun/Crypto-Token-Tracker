@@ -78,7 +78,7 @@ export abstract class BaseTracker implements ITracker {
       statusUpdated: ((status: any) => void) | undefined = undefined, 
       checkInterval: number = 15_000,
     ) {
-      while (!await this.workerPool.idle()) {
+      while (true) {
         const status = await this.workerPool.status()
         statusUpdated = statusUpdated ?? ((status: any) => {
           logger.info('Refreshing tracking status', {ctx, status})
