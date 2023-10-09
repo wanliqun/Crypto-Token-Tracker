@@ -118,8 +118,8 @@ export abstract class BaseReporter implements IReporter{
         const lines = []
         for (const path of validStmtPath) {
           let line = `${path[0].from}`
-          for (const stmt of path) {
-            line += `->${stmnt.to}(${stmnt.amount})`
+          for (const stm of path) {
+            line += `->${stm.to}(${stm.amount})`
           }
           lines.push(line)
         }
@@ -176,6 +176,10 @@ export abstract class BaseReporter implements IReporter{
         tag: meta?.entity_tag ?? "",
         contract: meta?.is_contract === 1,
       })
+    }
+
+    if (topFlowStats.length == 0) {
+      return
     }
 
     logger.info("Writting Top50 flow statistics to CSV", {fileName:this.top50FlowSummaryCsvFileName})
