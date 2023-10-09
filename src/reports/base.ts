@@ -125,7 +125,7 @@ export abstract class BaseReporter implements IReporter{
         }
 
         const lineStr = lines.join("\n")
-        records.push({path: `"${lineStr}"`, ...stmnt, })
+        records.push({path: `${lineStr}`, ...stmnt, })
       }
 
       if (records.length > 0) {
