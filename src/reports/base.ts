@@ -191,25 +191,31 @@ export abstract class BaseReporter implements IReporter{
         this.trackingFlow.set(caddr, toAmount + tinfo[1])
       }
 
+      const meta = await this.addrStore?.get(caddr)
+      if (meta?.is_contract) {
+        continue
+      }
+
       const cflow = { from: address, to: caddr, amount: tinfo[1], }
       const nextFlows = new TransferFlow([...incomingFlows, cflow])
 
-      const meta = await this.addrStore?.get(caddr)
-      if (!meta?.entity_tag || meta?.is_contract) {
+      if (!meta?.entity_tag) {
         tasks.push(async ()=>{
           await this.collect(caddr, context, curLevel+1, nextFlows)
         })
         continue
       }
 
-      if (tinfo[1] > getMinCollectTransferAmount()) {
-        const cex = identityCex(meta?.entity_tag)
-        if (cex && BaseReporter.concernedCexs.includes(cex)) {
-          const flowStatements = this.cexFlowStatements.get(cex) ?? []
-          flowStatements.push(nextFlows)
+      const cex = identityCex(meta!.entity_tag) ?? ""
+      if (!BaseReporter.concernedCexs.includes(cex)) {
+        continue
+      }
 
-          this.cexFlowStatements.set(cex, flowStatements)
-        }
+      if (tinfo[1] > getMinCollectTransferAmount()) {
+        const flowStatements = this.cexFlowStatements.get(cex) ?? []
+        flowStatements.push(nextFlows)
+
+        this.cexFlowStatements.set(cex, flowStatements)
       }
 
       const data = { flows: nextFlows, entityTag: meta?.entity_tag, }
