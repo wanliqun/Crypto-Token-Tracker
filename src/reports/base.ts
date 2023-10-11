@@ -29,6 +29,8 @@ export abstract class BaseReporter implements IReporter{
   protected trackingFlow: LargeMap<string, number>
   protected cexFlowStatements: Map<string, TransferFlow[]>
 
+  protected fsArchiveFileName: string = ""
+
   constructor(dbpool: mysql.Pool, transferStore: ITokenTransferStore, addrStore: IAddressStore) {
     this.dbpool = dbpool
     this.transferStore = transferStore
@@ -49,6 +51,7 @@ export abstract class BaseReporter implements IReporter{
     const startTime = new Date()
 
     logger.info("Collecting transfer flow for reporting...", {context})
+    this.fsArchiveFileName = this.flowStatementsArchiveFileName(context)
     await this.collect(context.address, context, 0, new TransferFlow())
 
     logger.info("Generating TopN transfer flow summary...")
@@ -161,12 +164,6 @@ export abstract class BaseReporter implements IReporter{
     await writer.writeRecords(topFlowStats)
   }
 
-  protected flowStatementsArchiveFileName(ctx: IReportContext) {
-    const addrParts = [ctx.address.slice(0,3), ctx.address.slice(-3)]
-    const ts = Math.floor(Date.now() / 1000)
-    return `archive-flow-statements-${addrParts[0]}...${addrParts[1]}-${ts}.json`
-  }
-
   protected async collect(address: string, context: IReportContext, curLevel: number, incomingFlows: TransferFlow) {
     if (this.collectTracking.has(address)) {
       return
@@ -225,16 +222,22 @@ export abstract class BaseReporter implements IReporter{
     await async.parallelLimit(tasks, getMaxConcurrency())
   }
 
-  archiveFlowSteaments(context: IReportContext, data: any) {
-    const fileName = this.flowStatementsArchiveFileName(context)
+  protected flowStatementsArchiveFileName(ctx: IReportContext) {
+    const addrParts = [ctx.address.slice(0,3), ctx.address.slice(-3)]
+    const ts = Math.floor(Date.now() / 1000)
+    return `archive-flow-statements-${addrParts[0]}...${addrParts[1]}-${ts}.json`
+  }
+
+  protected archiveFlowSteaments(context: IReportContext, data: any) {
     /*
+    const fileName = this.flowStatementsArchiveFileName(context)
     const ws = fs.createWriteStream(`output/${fileName}`)
     const ok = ws.write(JSON.stringify(data) + "\n", (err)=>{
       if (err) logger.error("Failed to archive flow statements", {err, data})
     })
     */
     try {
-      fs.appendFileSync(`output/${fileName}`, JSON.stringify(data) + "\n")
+      fs.appendFileSync(`output/${this.fsArchiveFileName}`, JSON.stringify(data) + "\n")
     } catch (err) {
       return err
     }
