@@ -53,6 +53,14 @@ export const logger = createLogger({
   ],
 })
 
+export const skipZeroTrade = () => {
+  return confj.skip_zero_transfer
+}
+
+export const getMinCollectTransferAmount = () => {
+  return confj.min_collect_transfer_amount
+}
+
 export const getMaxConcurrency = () => {
   return confj.worker_pool_size
 }

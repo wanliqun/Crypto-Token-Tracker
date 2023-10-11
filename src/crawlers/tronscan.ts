@@ -1,4 +1,4 @@
-import {logger} from '../config/config'
+import {logger, skipZeroTrade} from '../config/config'
 import {BaseCrawler} from './base'
 import mysql from 'mysql2'
 import {PoolConnection} from 'mysql2/promise'
@@ -34,7 +34,7 @@ export class TronScanCrawler extends BaseCrawler {
 
       const lastTrackTime = await this.addrStore.getLatestTrackTime(task.address, task.type)
       if (lastTrackTime && this.observer) {
-        const cntAddrs = await this.transferStore.queryCounterAddresses(task.address, task.type)
+        const cntAddrs = await this.transferStore.queryCounterAddresses(task.address, task.type, skipZeroTrade())
         if (cntAddrs) this.observer.onNewCounterAddresses(task, cntAddrs)
       }
 
@@ -95,21 +95,22 @@ export class TronScanCrawler extends BaseCrawler {
       const cntAddrs: Map<string, any> = new Map<string, any>()
       const txns: any[] = []
       for (const trasfer of data.token_transfers) {
-        txns.push({
+        const t = {
           block_num: trasfer.block,
           block_ts: trasfer.block_ts,
           txn_hash: trasfer.transaction_id,
           from_addr: trasfer.from_address,
           to_addr: trasfer.to_address,
           amount: trasfer.quant,
-        })
+        }
+        txns.push(t)
 
         await this._saveTransferAddress(task.token, trasfer)
 
         if (task.type == FlowType.TransferIn) {
-          cntAddrs.set(trasfer.from_address, true)
+          cntAddrs.set(trasfer.from_address, t.amount)
         } else {
-          cntAddrs.set(trasfer.to_address, true)
+          cntAddrs.set(trasfer.to_address, t.amount)
         }
       }
       
@@ -123,7 +124,7 @@ export class TronScanCrawler extends BaseCrawler {
       )
 
       if (this.observer) {
-        this.observer.onNewCounterAddresses(task, [...cntAddrs.keys()])
+        this.observer.onNewCounterAddresses(task, cntAddrs)
       }
     }
 

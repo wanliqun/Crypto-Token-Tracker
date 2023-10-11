@@ -1,7 +1,8 @@
 import mysql from 'mysql2'
 import { IAddressStore, ITokenTransferStore } from '../store/store'
 import { FlowType } from '../const';
-import { logger, getMaxConcurrency } from '../config/config';
+import { Transfer, TransferFlow } from '../types';
+import { logger, getMaxConcurrency, skipZeroTrade, getMinCollectTransferAmount } from '../config/config';
 import { IReporter, IReportContext } from "./interface";
 import async from 'async';
 import fs from "fs";
@@ -16,25 +17,8 @@ import {
 } from '@datastructures-js/heap';
 import LargeMap from 'large-map';
 
-interface FlowStatement{from: string, to:string, amount:number}
-
-type FlowStatementPath = FlowStatement[]
-function isFlowStatementPathBroken(path: FlowStatementPath): boolean {
-  let expectedFrom = path[0]?.from
-  for (const stmnt of path) {
-    if (stmnt.amount == 0 || expectedFrom != stmnt.from) {
-      return true
-    }
-
-    expectedFrom = stmnt.to
-  }
-
-  return false
-}
-
 export abstract class BaseReporter implements IReporter{
   static outputDir = "./output"
-  static minFlowAmount = 10_000
   static concernedCexs = ['Binance', 'Kucoin', 'Huobi', 'OKX', 'MXC']
 
   protected dbpool: mysql.Pool
@@ -43,11 +27,7 @@ export abstract class BaseReporter implements IReporter{
 
   protected collectTracking: LargeMap<string, boolean>
   protected trackingFlow: LargeMap<string, number>
-  protected cexFlowStatement: Map<string, FlowStatement[]>
-  protected cexFlowStatementFullPath: Map<string, Map<string, FlowStatementPath[]>>
-
-  protected top50FlowSummaryCsvFileName: string
-  protected cexFlowStatementCsvPrefix: string
+  protected cexFlowStatements: Map<string, TransferFlow[]>
 
   constructor(dbpool: mysql.Pool, transferStore: ITokenTransferStore, addrStore: IAddressStore) {
     this.dbpool = dbpool
@@ -56,11 +36,7 @@ export abstract class BaseReporter implements IReporter{
 
     this.collectTracking = new LargeMap<string, boolean>()
     this.trackingFlow = new LargeMap<string, number>()
-    this.cexFlowStatement = new Map<string, FlowStatement[]>()
-    this.cexFlowStatementFullPath = new Map<string, Map<string, FlowStatementPath[]>>
-
-    this.top50FlowSummaryCsvFileName = "top50-flow-summary.csv"
-    this.cexFlowStatementCsvPrefix = "cex-flow"
+    this.cexFlowStatements = new Map<string, TransferFlow[]>()
 
     // prepare the `output` folder
     if (!fs.existsSync(BaseReporter.outputDir)) {
@@ -73,64 +49,45 @@ export abstract class BaseReporter implements IReporter{
     const startTime = new Date()
 
     logger.info("Collecting transfer flow for reporting...", {context})
-    await this.collect(context.address, context, 0, [])
+    await this.collect(context.address, context, 0, new TransferFlow())
 
-    logger.info("Generating Top50 transfer flow summary...")
-    await this.generatetop50FlowSummary()
+    logger.info("Generating TopN transfer flow summary...")
+    await this.generatetopNFlowSummary(context)
 
     logger.info("Generating mainstream CEX transfer flow statements...")
-    await this.generateMainstreamCexFlowStatement()
+    await this.generateMainstreamCexFlowStatement(context)
 
     let timeDuration = new Date().getTime () - startTime.getTime ();
     logger.info(`Reporing ended with duration ${timeDuration} ms`)
   }
 
-  protected async generateMainstreamCexFlowStatement() {
-    for (const [cex, statements] of this.cexFlowStatement) {
-      const cexFlowStmtFullPath = this.cexFlowStatementFullPath.get(cex)
-      if (!cexFlowStmtFullPath) {
-        continue
-      }
+  protected cexFlowStatementsFileName(ctx: IReportContext, cex: string) {
+    const addrParts = [ctx.address.slice(0,3), ctx.address.slice(-3)]
+    const ts = Math.floor(Date.now() / 1000)
+    return `${cex}-flow-statements-${addrParts[0]}...${addrParts[1]}-${ts}.csv`
+  }
 
-      this.cexFlowStatementFullPath.delete(cex)
-
-      statements.sort((a: FlowStatement, b:FlowStatement): number => {
-        return b.amount - a.amount
+  protected async generateMainstreamCexFlowStatement(ctx: IReportContext) {
+    for (const [cex, flowStatements] of this.cexFlowStatements) {
+      flowStatements.sort((a: TransferFlow, b:TransferFlow): number => {
+        return b.last()!.amount - a.last()!.amount
       })
 
-      const records: (FlowStatement & { path: string })[] = []
-      for (const stmnt of statements) {
-        const validStmtPath = []
-        const flowStmtPath = cexFlowStmtFullPath?.get(stmnt.to) ?? []
-
-        for (const path of flowStmtPath) {
-          if (!isFlowStatementPathBroken(path)) {
-            validStmtPath.push(path)
-          }
+      const records: (Transfer & { path: string })[] = []
+      for (const stmnt of flowStatements) {
+        let line = `${stmnt[0].from}`
+        for (const t of stmnt) {
+          line += `->${t.to}(${t.amount})`
         }
-
-        cexFlowStmtFullPath.delete(stmnt.to)
-
-        if (validStmtPath.length == 0) {
-          continue
-        }
-
-        const lines = []
-        for (const path of validStmtPath) {
-          let line = `${path[0].from}`
-          for (const stm of path) {
-            line += `->${stm.to}(${stm.amount})`
-          }
-          lines.push(line)
-        }
-
-        const lineStr = lines.join("\n")
-        records.push({path: `${lineStr}`, ...stmnt, })
+        records.push({path: line, ...stmnt.last()!, })
       }
+
+      const fileName = this.cexFlowStatementsFileName(ctx, cex)
+      logger.info("Writting CEX flow statements to CSV", {cex: cex, fileName:fileName})
 
       if (records.length > 0) {
         let writer = csvWriter.createObjectCsvWriter({
-          path: `output/${this.cexFlowStatementCsvPrefix}-${cex}.csv`,
+          path: `output/${fileName}`,
           header: [
             { id: "from", title: "FROM ADDRESS" },
             { id: "to", title: "CEX ADDRESS" },
@@ -143,11 +100,17 @@ export abstract class BaseReporter implements IReporter{
     }
   }
   
-  protected async generatetop50FlowSummary() {
+  protected topNFlowSummaryFileName(ctx: IReportContext) {
+    const addrParts = [ctx.address.slice(0,3), ctx.address.slice(-3)]
+    const ts = Math.floor(Date.now() / 1000)
+    return `topN-flow-summary-${addrParts[0]}...${addrParts[1]}-${ts}.csv`
+  }
+
+  protected async generatetopNFlowSummary(ctx: IReportContext) {
     interface IFlowStat {addr: string, amount: number}
     const top50StatsHeap = new MinHeap<IFlowStat>((s: IFlowStat) => s.amount);
     
-    logger.info("Calculate TOP50 flow statistics", {numFlowRecords: this.trackingFlow.size})
+    logger.info("Calculate TopN flow statistics", {numFlowRecords: this.trackingFlow.size})
 
     for (const [addr, amount] of this.trackingFlow) {
       if (amount <= 0) continue
@@ -182,10 +145,11 @@ export abstract class BaseReporter implements IReporter{
       return
     }
 
-    logger.info("Writting Top50 flow statistics to CSV", {fileName:this.top50FlowSummaryCsvFileName})
+    const fileName = this.topNFlowSummaryFileName(ctx)
+    logger.info("Writting TopN flow statistics to CSV", {fileName:fileName})
 
     let writer = csvWriter.createObjectCsvWriter({
-      path: `output/${this.top50FlowSummaryCsvFileName}`,
+      path: `output/${fileName}`,
       header: [
         { id: "addr", title: "OUT ADDRESS" },
         { id: "tag", title: "ENTITY TAG" },
@@ -197,7 +161,13 @@ export abstract class BaseReporter implements IReporter{
     await writer.writeRecords(topFlowStats)
   }
 
-  protected async collect(address: string, context: IReportContext, curLevel: number, transferFlows: FlowStatement[]) {
+  protected flowStatementsArchiveFileName(ctx: IReportContext) {
+    const addrParts = [ctx.address.slice(0,3), ctx.address.slice(-3)]
+    const ts = Math.floor(Date.now() / 1000)
+    return `archive-flow-statements-${addrParts[0]}...${addrParts[1]}-${ts}.json`
+  }
+
+  protected async collect(address: string, context: IReportContext, curLevel: number, incomingFlows: TransferFlow) {
     if (this.collectTracking.has(address)) {
       return
     }
@@ -208,7 +178,7 @@ export abstract class BaseReporter implements IReporter{
 
     this.collectTracking.set(address, true)
 
-    const cntAddrs = await this.transferStore.queryCounterAddresses(address, FlowType.TransferOut)
+    const cntAddrs = await this.transferStore.queryCounterAddresses(address, FlowType.TransferOut, skipZeroTrade())
     if (!cntAddrs || cntAddrs.length == 0) {
       return
     }
@@ -224,31 +194,49 @@ export abstract class BaseReporter implements IReporter{
         this.trackingFlow.set(caddr, toAmount + tinfo[1])
       }
 
-      const flowStmnt = { from: address, to: caddr, amount: tinfo[1], }
+      const cflow = { from: address, to: caddr, amount: tinfo[1], }
+      const nextFlows = new TransferFlow([...incomingFlows, cflow])
 
-      if (tinfo[1] > BaseReporter.minFlowAmount) {
-        const meta = await this.addrStore?.get(caddr)
+      const meta = await this.addrStore?.get(caddr)
+      if (!meta?.entity_tag || meta?.is_contract) {
+        tasks.push(async ()=>{
+          await this.collect(caddr, context, curLevel+1, nextFlows)
+        })
+        continue
+      }
+
+      if (tinfo[1] > getMinCollectTransferAmount()) {
         const cex = identityCex(meta?.entity_tag)
         if (cex && BaseReporter.concernedCexs.includes(cex)) {
-          const cexStatements = this.cexFlowStatement.get(cex) ?? []
-          cexStatements.push(flowStmnt)
-          this.cexFlowStatement.set(cex, cexStatements)
+          const flowStatements = this.cexFlowStatements.get(cex) ?? []
+          flowStatements.push(nextFlows)
 
-          const cexStmtFullPath = this.cexFlowStatementFullPath.get(cex) ?? new Map<string, FlowStatementPath[]>()
-          const stmtFullPath = cexStmtFullPath.get(caddr) ?? []
-          stmtFullPath.push([...transferFlows, flowStmnt])
-
-          cexStmtFullPath.set(caddr, stmtFullPath)
-          this.cexFlowStatementFullPath.set(cex, cexStmtFullPath)
+          this.cexFlowStatements.set(cex, flowStatements)
         }
       }
 
-      //await this.collect(caddr, context, curLevel+1)
-      tasks.push(async ()=>{
-        await this.collect(caddr, context, curLevel+1, [...transferFlows, flowStmnt])
-      })
+      const data = { flows: nextFlows, entityTag: meta?.entity_tag, }
+      const err = this.archiveFlowSteaments(context, data)
+      if (err) {
+        logger.error("Failed to archive flow statements", {err, data})
+      }
     }
 
     await async.parallelLimit(tasks, getMaxConcurrency())
+  }
+
+  archiveFlowSteaments(context: IReportContext, data: any) {
+    const fileName = this.flowStatementsArchiveFileName(context)
+    /*
+    const ws = fs.createWriteStream(`output/${fileName}`)
+    const ok = ws.write(JSON.stringify(data) + "\n", (err)=>{
+      if (err) logger.error("Failed to archive flow statements", {err, data})
+    })
+    */
+    try {
+      fs.appendFileSync(`output/${fileName}`, JSON.stringify(data) + "\n")
+    } catch (err) {
+      return err
+    }
   }
 }

@@ -1,5 +1,5 @@
 import * as mysql from 'mysql2'
-import {logger} from '../config/config'
+import {logger, skipZeroTrade} from '../config/config'
 import {ITrackContext, ITracker} from './interface'
 import {/* AsyncQueueWorkerPool, ITask, */ IWorkerPool} from '../workers/workerpool'
 import {registerGracefulShutdown} from '../util/graceful'
@@ -129,8 +129,22 @@ export abstract class BaseTracker implements ITracker {
       })
     }
 
-    async onNewCounterAddresses(task: ICrawlTask, newAddresses: string[]) {
-      for (const addr of newAddresses) {
+    filterZeroTradeAddresses(newAddresses: Map<string, any>): string[] {
+      if (!skipZeroTrade()) return [...newAddresses.keys()]
+
+      const addrs = [] as string[]
+      newAddresses.forEach((v, k)=>{
+        if (Number(v)) { addrs.push(k) }
+      })
+
+      return addrs
+    }
+
+    async onNewCounterAddresses(task: ICrawlTask, newAddresses: string[] | Map<string, any>) {
+      if (!newAddresses) { return }
+
+      let trackAddress = (newAddresses instanceof Array) ? newAddresses : this.filterZeroTradeAddresses(newAddresses)
+      for (const addr of trackAddress) {
         const meta = await this.addrStore?.get(addr)
         if (meta?.is_contract) {
           logger.debug('Skip contract address for tracking...', {task, meta})
@@ -143,12 +157,12 @@ export abstract class BaseTracker implements ITracker {
         }
 
         /*
-            const cex = identityCex(meta?.entity_tag)
-            if (cex) {
-                logger.debug("Skip CEX address for tracking...", {task, addr, cex})
-                continue
-            }
-            */
+          const cex = identityCex(meta?.entity_tag)
+          if (cex) {
+              logger.debug("Skip CEX address for tracking...", {task, addr, cex})
+              continue
+          }
+        */
 
         if (task.type == FlowType.TransferIn) {
           this.traverseIn(task.token, addr, task.level + 1)

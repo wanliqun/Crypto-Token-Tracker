@@ -2,7 +2,7 @@ import mysql from 'mysql2'
 import { IAddressStore, ITokenTransferStore } from '../store/store'
 import { IMarker, IMarkContext } from './interface'
 import { FlowType } from '../const';
-import { logger, getMaxConcurrency} from '../config/config';
+import { logger, getMaxConcurrency, skipZeroTrade} from '../config/config';
 import fs from "fs";
 import async from 'async';
 
@@ -64,7 +64,7 @@ export abstract class BaseMarker implements IMarker {
             suspicious.push(suspiciousInfo!)
         }
 
-        const cntAddrs = await this.transferStore.queryCounterAddresses(address, FlowType.TransferOut)
+        const cntAddrs = await this.transferStore.queryCounterAddresses(address, FlowType.TransferOut, skipZeroTrade())
         if (!cntAddrs || cntAddrs.length == 0) {
             return
         }
@@ -81,7 +81,7 @@ export abstract class BaseMarker implements IMarker {
     }
 
     protected async checkSuspicious(addr: string): Promise<ISuspiciousInfo | undefined> {
-        const cntAddrs = await this.transferStore.queryCounterAddresses(addr, FlowType.TransferIn)
+        const cntAddrs = await this.transferStore.queryCounterAddresses(addr, FlowType.TransferIn, skipZeroTrade())
         if (!cntAddrs || cntAddrs.length == 0) {
             return
         }

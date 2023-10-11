@@ -41,16 +41,18 @@ export class TronScanTokenTransferStore extends BaseStore implements ITokenTrans
       )
     }
 
-    async queryCounterAddresses(addr: string, ctype: FlowType) {
+    async queryCounterAddresses(addr: string, ctype: FlowType, skipZero: boolean=false) {
       let [myAddrField, counterAddrField] = ['from_addr', 'to_addr']
       if (ctype === FlowType.TransferIn) {
         [myAddrField, counterAddrField] = [counterAddrField, myAddrField]
       }
 
-      const [rows] = await this.dbpool.promise().query(
-        `SELECT distinct(${counterAddrField}) FROM ${this.tableName} WHERE ${myAddrField}=?`, [addr],
-      )
+      let sql = `SELECT distinct(${counterAddrField}) FROM ${this.tableName} WHERE ${myAddrField}=?`
+      if (skipZero) {
+        sql = `${sql} AND amount > 0`
+      }
 
+      const [rows] = await this.dbpool.promise().query(sql, [addr])
       const values = rows as mysql.RowDataPacket[]
       if (values?.length === 0) {
         return

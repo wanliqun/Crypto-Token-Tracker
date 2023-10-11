@@ -8,7 +8,7 @@ export interface ICrawlTask {
 }
 
 export interface ICrawlObserver {
-    onNewCounterAddresses(task: ICrawlTask, newAddresses: string[]): Promise<any>
+    onNewCounterAddresses(task: ICrawlTask, newAddresses: string[] | Map<string, any>): Promise<any>
 }
 
 export interface ICrawler {

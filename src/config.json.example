@@ -4,6 +4,8 @@
     "max_out_depth": 3,
     "max_in_depth": 0,
     "worker_pool_size": 4,
+    "skip_zero_transfer": true,
+    "min_collect_transfer_amount": 10000,
     "tron": {
         "data_source": "tronscan",
         "api_keys": [

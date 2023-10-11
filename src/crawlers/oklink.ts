@@ -1,5 +1,5 @@
 import {BaseCrawler} from './base'
-import {logger} from '../config/config'
+import {logger, skipZeroTrade} from '../config/config'
 import mysql from 'mysql2'
 import {PoolConnection} from 'mysql2/promise'
 import axios from 'axios'
@@ -27,7 +27,7 @@ export class OklinkCrawler extends BaseCrawler {
 
       const lastTrackOffset = await this.addrStore.getLatestTrackOffset(task.address, task.type)
       if (lastTrackOffset && this.observer) {
-        const cntAddrs = await this.transferStore.queryCounterAddresses(task.address, task.type)
+        const cntAddrs = await this.transferStore.queryCounterAddresses(task.address, task.type, skipZeroTrade())
         if (cntAddrs) this.observer.onNewCounterAddresses(task, cntAddrs)
       }
 
@@ -123,9 +123,9 @@ export class OklinkCrawler extends BaseCrawler {
         await this._saveTransferAddress(task.token, t)
 
         if (task.type == FlowType.TransferIn) {
-          cntAddrs.set(e.from, true)
+          cntAddrs.set(e.from, t.total_value)
         } else {
-          cntAddrs.set(e.to, true)
+          cntAddrs.set(e.to, t.total_value)
         }
       }
 
@@ -138,7 +138,7 @@ export class OklinkCrawler extends BaseCrawler {
       )
 
       if (this.observer) {
-        this.observer.onNewCounterAddresses(task, [...cntAddrs.keys()])
+        this.observer.onNewCounterAddresses(task, cntAddrs)
       }
     }
 
