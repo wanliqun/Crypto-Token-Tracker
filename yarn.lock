@@ -4357,6 +4357,11 @@ pathval@^1.1.1:
   resolved "https://registry.npmjs.org/pathval/-/pathval-1.1.1.tgz"
   integrity sha512-Dp6zGqpTdETdR63lehJYPeIOqpiNBNtc7BpWSLrOje7UaIsE5aY92r/AunQA7rsXvet3lrJ3JnZX29UPTKXyKQ==
 
+percentile@^1.6.0:
+  version "1.6.0"
+  resolved "https://registry.yarnpkg.com/percentile/-/percentile-1.6.0.tgz#c847b35a4d0a4e52235e16742aa3f317ce957293"
+  integrity sha512-8vSyjdzwxGDHHwH+cSGch3A9Uj2On3UpgOWxWXMKwUvoAbnujx6DaqmV1duWXNiH/oEWpyVd6nSQccix6DM3Ng==
+
 picocolors@^1.0.0:
   version "1.0.0"
   resolved "https://registry.npmjs.org/picocolors/-/picocolors-1.0.0.tgz"

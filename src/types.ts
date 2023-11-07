@@ -1,5 +1,5 @@
 export interface Transfer {
-    from: string, to:string, amount:number
+    from: string, to:string, amount:number, count?:number,
 }
 
 export class TransferFlow extends Array<Transfer> {

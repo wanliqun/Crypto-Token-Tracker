@@ -1,5 +1,5 @@
 import {BaseCrawler} from './base'
-import {logger, skipZeroTrade} from '../config/config'
+import {logger} from '../config/config'
 import mysql from 'mysql2'
 import {PoolConnection} from 'mysql2/promise'
 import axios from 'axios'
@@ -8,7 +8,7 @@ import { ICrawlTask} from './interface'
 import { FlowType } from '../const'
 import {HttpsProxyAgent} from 'https-proxy-agent'
 import {OklinkTokenTransferStore, OklinkAddressStore} from '../store/oklink'
-import {getAddrInfoFromOkLink} from '../util/addr-meta'
+import {getAddrInfo} from '../util/oklink-client'
 
 export class OklinkCrawler extends BaseCrawler {
     protected chain: string // only "TRX" and "ETH" are supported
@@ -27,7 +27,7 @@ export class OklinkCrawler extends BaseCrawler {
 
       const lastTrackOffset = await this.addrStore.getLatestTrackOffset(task.address, task.type)
       if (lastTrackOffset && this.observer) {
-        const cntAddrs = await this.transferStore.queryCounterAddresses(task.address, task.type, skipZeroTrade())
+        const cntAddrs = await this.transferStore.queryCounterAddresses(task.address, task.type)
         if (cntAddrs) this.observer.onNewCounterAddresses(task, cntAddrs)
       }
 
@@ -164,7 +164,7 @@ export class OklinkCrawler extends BaseCrawler {
 
     async _saveAddress(token: string, addrInfo: {addr: string, is_contract: any | undefined, entity_tag: string}) {
       if (addrInfo.is_contract === undefined) {
-        const info = await getAddrInfoFromOkLink(token, addrInfo.addr, this.chain)
+        const info = await getAddrInfo(token, addrInfo.addr, this.chain)
         addrInfo.is_contract = info?.isContract
         if (!addrInfo.entity_tag && info?.tag) {
           addrInfo.entity_tag = info.tag

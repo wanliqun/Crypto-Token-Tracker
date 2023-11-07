@@ -6,7 +6,7 @@ import {ICrawler} from '../crawlers/interface'
 import {TronScanCrawler} from '../crawlers/tronscan'
 import {TronScanAddressStore, TronScanTokenTransferStore} from '../store/tron'
 import {OklinkAddressStore, OklinkTokenTransferStore} from '../store/oklink'
-import {OklinkCrawler} from '../crawlers/oklink'
+import {OklinkCrawlerV2} from '../crawlers/oklink-v2'
 import {TronTracker} from '../tracker/tron'
 import { EthTracker } from '../tracker/eth'
 import {OkLinkReporter} from '../reports/oklink'
@@ -98,7 +98,7 @@ export const getTronCrawler = async (dbpool: mysql.Pool): Promise<ICrawler> => {
     const transferStore = await OklinkTokenTransferStore.singleton(dbpool, chainTron)
     const addrStore = await OklinkAddressStore.singleton(dbpool, chainTron)
 
-    return new OklinkCrawler(dbpool, chainTron, transferStore, addrStore)
+    return new OklinkCrawlerV2(dbpool, chainTron, transferStore, addrStore)
   }
 
   // otherwise, use tronscan as default
@@ -160,7 +160,7 @@ export const getEthCrawler = async (dbpool: mysql.Pool): Promise<ICrawler> => {
   const transferStore = await OklinkTokenTransferStore.singleton(dbpool, chainEth)
   const addrStore = await OklinkAddressStore.singleton(dbpool, chainEth)
 
-  return new OklinkCrawler(dbpool, chainEth, transferStore, addrStore)
+  return new OklinkCrawlerV2(dbpool, chainEth, transferStore, addrStore)
 }
 
 // factory method to get ETH tracker
