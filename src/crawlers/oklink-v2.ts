@@ -40,7 +40,7 @@ export class OklinkCrawlerV2 extends BaseCrawler {
 
     const lastTrackOffset = await this.addrStore.getLatestTrackOffset(task.address, task.type)
     if (lastTrackOffset) {
-      const offset = 0, limit = 1000
+      let offset = 0, limit = 1000
       do {
         const transfers = await this.transferStore.queryTransfers(task.address, task.type, offset, limit)
         if (!transfers) {
@@ -56,6 +56,8 @@ export class OklinkCrawlerV2 extends BaseCrawler {
             count: t.txn_count,
           })
         }
+
+        offset += transfers.length
       } while(true)
     }
 
