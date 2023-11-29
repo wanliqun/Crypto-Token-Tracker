@@ -45,6 +45,11 @@ const Header = () => {
             }
         }
 
+        if (nodes.length == 0 || edges.length == 0) {
+            alert("Please provide any valid paths")
+            return
+        }
+
         const graph = globalGraph
         graph.data({
             nodes: nodes,
@@ -67,6 +72,11 @@ const Header = () => {
     }
 
     function decodeString(str) {
+        str = str.trim()
+        if (str.length == 0) {
+            return []
+        }
+        
         const parts = str.split("->");
         const result = [];
         for (let part of parts) {
