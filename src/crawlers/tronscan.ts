@@ -12,8 +12,6 @@ import fs from 'fs'
 //import {loggers} from 'winston'
 import confj from '../config.json'
 
-const mass_num_ct_addrs = 1200
-
 export class TronScanCrawler extends BaseCrawler {
     // transfer-in tracking
     protected transferInAddrs: Map<string, Set<string>>
@@ -86,6 +84,7 @@ export class TronScanCrawler extends BaseCrawler {
           continue
         }
 
+        const mass_num_ct_addrs = confj.mass_num_ct_addrs
         if (task.type == FlowType.TransferIn) {
           const numInAddrs = this.transferInAddrs.get(task.address)
           if ((numInAddrs?.size ?? 0) > mass_num_ct_addrs) {
