@@ -7,11 +7,19 @@ import axios from 'axios'
 import {sleep} from 'modern-async'
 import {ICrawlTask} from './interface'
 import { FlowType } from '../const'
-import {getAddrInfoFromOkLink} from '../util/addr-meta'
+import {getAddrTagFromOkLinkAddrStore} from '../util/addr-meta'
+import fs from 'fs'
 //import {loggers} from 'winston'
 import confj from '../config.json'
 
+const mass_num_ct_addrs = 1200
+
 export class TronScanCrawler extends BaseCrawler {
+    // transfer-in tracking
+    protected transferInAddrs: Map<string, Set<string>>
+    // transfer-out tracking
+    protected transferOutAddrs: Map<string, Set<string>>
+
     static keyIndex = 0
     static getApiKey(): string {
       return confj.tron.api_keys[this.keyIndex++ % confj.tron.api_keys.length]
@@ -27,6 +35,8 @@ export class TronScanCrawler extends BaseCrawler {
       super(dbpool)
       this.transferStore = transferStore
       this.addrStore = addrStore
+      this.transferInAddrs = new Map<string, Set<string>>()
+      this.transferOutAddrs = new Map<string, Set<string>>()
     }
 
     async crawl(task: ICrawlTask) {
@@ -75,7 +85,27 @@ export class TronScanCrawler extends BaseCrawler {
           await sleep(1500)
           continue
         }
-       
+
+        if (task.type == FlowType.TransferIn) {
+          const numInAddrs = this.transferInAddrs.get(task.address)
+          if ((numInAddrs?.size ?? 0) > mass_num_ct_addrs) {
+            logger.warn('Tough crawl task with huge transfer in addresses', {task, mass_num_ct_addrs})
+            fs.writeFile('mass_in_addrs.txt',  JSON.stringify({task, mass_num_ct_addrs}) + '\n', { flag: 'a' }, (err) => {
+              if (err) throw err;
+            });
+            return
+          }
+        } else {
+          const numOutAddrs = this.transferOutAddrs.get(task.address)
+          if ((numOutAddrs?.size ?? 0) > mass_num_ct_addrs) {
+            logger.warn('Tough crawl task with huge transfer out addresses', {task, mass_num_ct_addrs})
+            fs.writeFile('mass_out_addrs.txt',  JSON.stringify({task, mass_num_ct_addrs}) + '\n', { flag: 'a' }, (err) => {
+              if (err) {}
+            });
+            return
+          }
+        }
+
         start += result.data.token_transfers.length
         if (start >= result.data.total) {
           logger.debug('All token transfer crawls are done', {params, total: result.data.total})
@@ -95,6 +125,10 @@ export class TronScanCrawler extends BaseCrawler {
       const cntAddrs: Map<string, any> = new Map<string, any>()
       const txns: any[] = []
       for (const trasfer of data.token_transfers) {
+        if (skipZeroTrade() && !trasfer.quant) {
+          continue
+        }
+
         const t = {
           block_num: trasfer.block,
           block_ts: trasfer.block_ts,
@@ -103,17 +137,28 @@ export class TronScanCrawler extends BaseCrawler {
           to_addr: trasfer.to_address,
           amount: trasfer.quant,
         }
+
         txns.push(t)
 
         await this._saveTransferAddress(task.token, trasfer)
 
         if (task.type == FlowType.TransferIn) {
-          cntAddrs.set(trasfer.from_address, t.amount)
+          const amt = (cntAddrs.get(trasfer.from_address) ?? 0) + t.amount
+          cntAddrs.set(trasfer.from_address, amt)
+
+          const set = this.transferInAddrs.get(trasfer.to_address) ?? new Set()
+          set.add(trasfer.from_address)
+          this.transferInAddrs.set(trasfer.to_address, set)
         } else {
-          cntAddrs.set(trasfer.to_address, t.amount)
+          const amt = (cntAddrs.get(trasfer.to_address) ?? 0) + t.amount
+          cntAddrs.set(trasfer.to_address, amt)
+
+          const set = this.transferOutAddrs.get(trasfer.from_address) ?? new Set()
+          set.add(trasfer.to_address)
+          this.transferOutAddrs.set(trasfer.from_address, set)
         }
       }
-      
+
       await this.transferStore.txnExec(
         async (conn: PoolConnection) => {
           await this.transferStore.batchSaveWithTxn(conn, txns)
@@ -151,11 +196,9 @@ export class TronScanCrawler extends BaseCrawler {
     }
 
     async _saveAddress(token: string, addrInfo: {addr: string, is_contract: number, entity_tag: string}) {
-      if (!addrInfo.entity_tag) { // try to fetch tag from oklink
-        const info = await getAddrInfoFromOkLink(token, addrInfo.addr, 'TRX')
-        if (info?.tag) {
-          addrInfo.entity_tag = info.tag
-        }
+      if (!addrInfo.entity_tag) { // try to fetch tag from oklink store
+        const tag = await getAddrTagFromOkLinkAddrStore(this.addrStore.dbPool(), addrInfo.addr, 'TRX')
+        addrInfo.entity_tag = tag ?? ""
       }
 
       await this.addrStore.save(addrInfo)

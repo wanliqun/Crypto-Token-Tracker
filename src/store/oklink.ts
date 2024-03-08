@@ -94,7 +94,7 @@ export class OklinkTokenTransferStore extends BaseStore implements ITokenTransfe
       }
 
       await dbTxn.query(
-        `INSERT INTO ${this.tableName} (from_addr, to_addr, total_value, txn_count, first_txn_ts, last_txn_ts) 
+        `INSERT INTO ${this.tableName} (from_addr, to_addr, total_value, txn_count, first_txn_ts, last_txn_ts)
                 VALUES ? ON DUPLICATE KEY UPDATE created_at = NOW()`, [txns],
       )
     }
@@ -119,7 +119,7 @@ export class OklinkTokenTransferStore extends BaseStore implements ITokenTransfe
         `SELECT sum(txn_count) as total_txns, sum(total_value) as total_sum FROM ${this.tableName} WHERE ${field}=?`,
         addr,
       )
-      
+
       const values = rows as mysql.RowDataPacket[]
       if (values?.length === 0) {
         return [0, 0]
@@ -259,13 +259,13 @@ export class OklinkAddressStore extends BaseAddressStore {
       await this.txnExec(
         async (conn: PoolConnection) => {
           let result = await conn.query(
-            `INSERT INTO ${this.tableName} (addr, is_contract, entity_tag, tag_info, health_score) 
+            `INSERT INTO ${this.tableName} (addr, is_contract, entity_tag, tag_info, health_score)
                     VALUES ? ON DUPLICATE KEY UPDATE
                       entity_tag=VALUES(entity_tag),
-                      tag_info=VALUES(tag_info), 
+                      tag_info=VALUES(tag_info),
                       health_score=VALUES(health_score)`,
             [[[
-              addrObj.addr, addrObj.is_contract, addrObj.entity_tag, 
+              addrObj.addr, addrObj.is_contract, addrObj.entity_tag,
               addrObj.tag_info ? JSON.stringify(addrObj.tag_info) : '',
               addrObj.health_score,
             ]]],
@@ -273,16 +273,16 @@ export class OklinkAddressStore extends BaseAddressStore {
           addrObj.id = (result[0] as ResultSetHeader).insertId;
 
           await conn.query(
-            `INSERT INTO ${this.statsInfoTableName} (fkid, misc) 
+            `INSERT INTO ${this.statsInfoTableName} (fkid, misc)
                     VALUES ? ON DUPLICATE KEY UPDATE created_at = NOW()`,
             [[[
-              addrObj.id, 
+              addrObj.id,
               addrOverall.statistics ? JSON.stringify(addrOverall.statistics) : '',
             ]]],
           )
 
           await conn.query(
-            `INSERT INTO ${this.healthyInfoTableName} (fkid, score, suspicious_score, gray_score, misc) 
+            `INSERT INTO ${this.healthyInfoTableName} (fkid, score, suspicious_score, gray_score, misc)
                     VALUES ? ON DUPLICATE KEY UPDATE created_at = NOW()`,
             [[[
               addrObj.id,
@@ -303,7 +303,7 @@ export class OklinkAddressStore extends BaseAddressStore {
 
     async save(addrObj: any) {
       await this.dbpool.promise().query(
-        `INSERT INTO ${this.tableName} (addr, is_contract, entity_tag) 
+        `INSERT INTO ${this.tableName} (addr, is_contract, entity_tag)
                 VALUES ? ON DUPLICATE KEY UPDATE entity_tag = VALUES(entity_tag)`,
         [[[addrObj.addr, addrObj.is_contract, addrObj.entity_tag]]],
       )
@@ -354,7 +354,7 @@ export class OklinkAddressStore extends BaseAddressStore {
               [JSON.stringify(misc), addrMeta.id],
             )
           }
-          
+
           return null
         },
       )
@@ -382,9 +382,9 @@ export class OklinkAddressStore extends BaseAddressStore {
       if (!addrInfo) {
         throw new Error("address not existed")
       }
-      
+
       const [rows] = await this.dbpool.promise().query(
-        `SELECT last_track_in_offset, last_track_out_offset FROM ${this.trackingInfoTableName} 
+        `SELECT last_track_in_offset, last_track_out_offset FROM ${this.trackingInfoTableName}
           WHERE fkid = ?`, [addrInfo.id],
       )
 

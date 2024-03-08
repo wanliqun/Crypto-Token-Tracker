@@ -46,7 +46,8 @@ export class AsyncQueueWorkerPool {
   }
 
   async addTask(t: ITask) {
-    return this.queue.unshift(t)
+    return this.queue.push(t)
+    //return this.queue.unshift(t)
   }
 
   async termiate() {
@@ -61,7 +62,7 @@ export class AsyncQueueWorkerPool {
     if (this.queue.idle()) {
       return
     }
-    
+
     await this.queue.drain()
   }
 }

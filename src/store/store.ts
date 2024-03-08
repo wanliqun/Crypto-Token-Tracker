@@ -12,6 +12,10 @@ export abstract class BaseStore {
       this.dbpool = dbpool
     }
 
+    dbPool(): mysql.Pool {
+      return this.dbpool
+    }
+
     async txnExec(...txnfuncs: ((conn: PoolConnection) => Promise<Error | null>)[]) {
       const conn = await this.dbpool.promise().getConnection()
 

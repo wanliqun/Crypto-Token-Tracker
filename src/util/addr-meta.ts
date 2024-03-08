@@ -1,3 +1,5 @@
+import mysql from 'mysql2'
+import {logger} from '../config/config'
 import {getAddrDetail, getAddrHealthyScore} from './oklink-client'
 
 const cexTags = [
@@ -59,5 +61,20 @@ export function identityCex(addrTag: string): string | undefined {
     if (addrTag.toLowerCase().includes(cex.toLowerCase())) {
       return cex
     }
+  }
+}
+
+export async function getAddrTagFromOkLinkAddrStore(dbpool: mysql.Pool, addr: string, chain: string) {
+  const tableName = `oklink_${chain}_addresses`
+
+  try {
+    const [rows] = await dbpool.promise().query(
+      `SELECT * FROM ${tableName} WHERE addr = ?`, [addr],
+    )
+
+    const values = rows as mysql.RowDataPacket[]
+    return values[0]?.entity_tag
+  } catch (error) {
+    logger.error('Failed to get address tag from oklink address store', {addr, chain})
   }
 }
