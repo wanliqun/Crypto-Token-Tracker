@@ -36,7 +36,7 @@ export class TronScanTokenTransferStore extends BaseStore implements ITokenTrans
                 KEY idx_block_num (block_num),
                 KEY idx_timestamp (block_ts),
                 KEY idx_from_to (from_addr,to_addr),
-                KEY idx_to (to_addr)                
+                KEY idx_to (to_addr)
             ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET="utf8mb4"`,
       )
     }
@@ -67,7 +67,17 @@ export class TronScanTokenTransferStore extends BaseStore implements ITokenTrans
     }
 
     async getMoneyFlowInfo(from: string, to: string) {
-      throw new Error("not implemented")
+      const [rows] = await this.dbpool.promise().query(
+        `SELECT COUNT(1) as txn_count, SUM(amount)/1e6 as total_value FROM ${this.tableName} WHERE from_addr=? AND to_addr=?`,
+        [from, to],
+      )
+
+      const values = rows as mysql.RowDataPacket[]
+      if (values?.length === 0) {
+        return [0, 0]
+      }
+
+      return [parseFloat(values[0].txn_count), parseFloat(values[0].total_value)];
     }
 
     async batchSaveWithTxn(dbTxn: PoolConnection, transfers: any[]) {
@@ -84,7 +94,7 @@ export class TronScanTokenTransferStore extends BaseStore implements ITokenTrans
       }
 
       await dbTxn.query(
-        `INSERT INTO ${this.tableName} (block_num, block_ts, txn_hash, from_addr, to_addr, amount) 
+        `INSERT INTO ${this.tableName} (block_num, block_ts, txn_hash, from_addr, to_addr, amount)
                 VALUES ? ON DUPLICATE KEY UPDATE created_at = NOW()`, [txns],
       )
     }
@@ -145,7 +155,7 @@ export class TronScanAddressStore extends BaseAddressStore {
 
     async save(addrObj: any) {
       await this.dbpool.promise().query(
-        `INSERT INTO ${this.tableName} (addr, is_contract, entity_tag) 
+        `INSERT INTO ${this.tableName} (addr, is_contract, entity_tag)
                 VALUES ? ON DUPLICATE KEY UPDATE created_at = NOW()`,
         [[[addrObj.addr, addrObj.is_contract, addrObj.entity_tag]]],
       )
