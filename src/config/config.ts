@@ -57,8 +57,24 @@ export const skipZeroTrade = () => {
   return confj.skip_zero_transfer
 }
 
+export const isArchiveFlowSteaments = () => {
+  return confj.archive_flow_steaments
+}
+
 export const getMinCollectTransferAmount = () => {
+  if (confj.min_collect_transfer_amount < 0) {
+    return Number.MIN_SAFE_INTEGER
+  }
+
   return confj.min_collect_transfer_amount
+}
+
+export const getMaxCollectTransferAmount = () => {
+  if (confj.max_collect_transfer_amount < 0) {
+    return Number.MAX_SAFE_INTEGER
+  }
+
+  return confj.max_collect_transfer_amount
 }
 
 export const getMaxConcurrency = () => {

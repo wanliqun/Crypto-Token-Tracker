@@ -2,7 +2,10 @@ import mysql from 'mysql2'
 import { IAddressStore, ITokenTransferStore } from '../store/store'
 import { FlowType } from '../const';
 import { Transfer, TransferFlow } from '../types';
-import { logger, getMaxConcurrency, skipZeroTrade, getMinCollectTransferAmount } from '../config/config';
+import {
+  logger, getMaxConcurrency, skipZeroTrade,
+  getMinCollectTransferAmount, getMaxCollectTransferAmount, isArchiveFlowSteaments,
+} from '../config/config';
 import { IReporter, IReportContext } from "./interface";
 import async from 'async';
 import fs from "fs";
@@ -102,7 +105,7 @@ export abstract class BaseReporter implements IReporter{
       }
     }
   }
-  
+
   protected topNFlowSummaryFileName(ctx: IReportContext) {
     const addrParts = [ctx.address.slice(0,3), ctx.address.slice(-3)]
     const ts = Math.floor(Date.now() / 1000)
@@ -112,7 +115,7 @@ export abstract class BaseReporter implements IReporter{
   protected async generatetopNFlowSummary(ctx: IReportContext) {
     interface IFlowStat {addr: string, amount: number}
     const top50StatsHeap = new MinHeap<IFlowStat>((s: IFlowStat) => s.amount);
-    
+
     logger.info("Calculate TopN flow statistics", {numFlowRecords: this.trackingFlow.size})
 
     for (const [addr, amount] of this.trackingFlow) {
@@ -137,7 +140,7 @@ export abstract class BaseReporter implements IReporter{
       const meta = await this.addrStore.get(htop!.addr)
 
       topFlowStats.unshift({
-        addr: htop!.addr, 
+        addr: htop!.addr,
         amount: htop!.amount,
         tag: meta?.entity_tag ?? "",
         contract: meta?.is_contract === 1,
@@ -211,17 +214,19 @@ export abstract class BaseReporter implements IReporter{
         continue
       }
 
-      if (tinfo[1] > getMinCollectTransferAmount()) {
+      if (tinfo[1] >= getMinCollectTransferAmount() && tinfo[1] <= getMaxCollectTransferAmount()) {
         const flowStatements = this.cexFlowStatements.get(cex) ?? []
         flowStatements.push(nextFlows)
 
         this.cexFlowStatements.set(cex, flowStatements)
       }
 
-      const data = { flows: nextFlows, entityTag: meta?.entity_tag, }
-      const err = this.archiveFlowSteaments(context, data)
-      if (err) {
-        logger.error("Failed to archive flow statements", {err, data})
+      if (isArchiveFlowSteaments()) {
+        const data = { flows: nextFlows, entityTag: meta?.entity_tag, }
+        const err = this.archiveFlowSteaments(context, data)
+        if (err) {
+          logger.error("Failed to archive flow statements", {err, data})
+        }
       }
     }
 
