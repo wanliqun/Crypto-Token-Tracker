@@ -1,15 +1,15 @@
 {
-  "name": "crypto-money-tracker",
+  "name": "crypto-token-tracker",
   "version": "0.0.1",
-  "description": "Cryoto-currency money flow tracker",
+  "description": "Cryoto token transfer flow tracker",
   "author": "",
   "bin": {
-    "crypto-money-tracker": "./bin/run"
+    "crypto-token-tracker": "./bin/run"
   },
-  "homepage": "https://github.com/wanliqun/Crypto-Token-Tracker",
+  "homepage": "https://github.com/Conflux-Chain/token-tracker",
   "license": "MIT",
   "main": "dist/index.js",
-  "repository": "wanliqun/Crypto-Token-Tracker",
+  "repository": "Conflux-Chain/token-tracker",
   "files": [
     "/bin",
     "/dist",
@@ -54,8 +54,8 @@
     "typescript": "^4.9.5"
   },
   "oclif": {
-    "bin": "crypto-money-tracker",
-    "dirname": "crypto-money-tracker",
+    "bin": "token-tracker",
+    "dirname": "token-tracker",
     "commands": "./dist/commands",
     "plugins": [
       "@oclif/plugin-help",
@@ -67,7 +67,7 @@
     "topicSeparator": " ",
     "topics": {
       "tron": {
-        "description": "TRON network crypto-currency tracking && statistics"
+        "description": "Cryoto token transfer flow tracker"
       }
     }
   },
@@ -83,7 +83,7 @@
   "engines": {
     "node": ">=12.0.0"
   },
-  "bugs": "https://github.com/wanliqun/Crypto-Token-Tracker/issues",
+  "bugs": "https://github.com/Conflux-Chain/token-tracker/issues",
   "keywords": [
     "oclif"
   ],
