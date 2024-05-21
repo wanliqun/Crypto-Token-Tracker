@@ -34,11 +34,6 @@ Here are the detailed instructions:
 3. Replace `tronscan.api_keys` with your actual tronscan open api key.
 4. Save the changes.
 
-To configure the project, you need to create a .env file in the root directory of the project. This file should contain the following environment variables:
-
-DB_CONNECTION_STRING=your_database_connection_string
-your_database_connection_string
-
 ## Commands
 
 - `tron track`: This command is used to start crawling the USDT transfer flow to the exchange into the database from a specified address. Here is an example of how to use it:
