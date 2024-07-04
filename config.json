@@ -6,7 +6,12 @@
       "password": "21972197",
       "database": "test02"
     },
-    "api_keys": "AATYZ1K4NP7AGW299HPD79KCJRYRTB8BIN",
+    "api_keys": [
+      "AATYZ1K4NP7AGW299HPD79KCJRYRTB8BIN",
+      "5H2AWWUXC5RXNN1J9M8TIISM6UFI3CTW2C",
+      "TBPB4216XPUW4P88Y7DK9JD79TR7DGHAVG"
+    ],
+
     "address": "0x36928500bc1dcd7af6a2b4008875cc336b927d57"
 
 }
