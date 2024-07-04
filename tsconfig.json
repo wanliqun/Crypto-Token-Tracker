@@ -1,16 +1,15 @@
 {
-  "compilerOptions": {
-    "declaration": true,
-    "importHelpers": true,
-    "module": "commonjs",
-    "outDir": "dist",
-    "rootDir": "src",
-    "strict": true,
-    "target": "es2019",
-    "resolveJsonModule": true,
-    "esModuleInterop": true
-  },
-  "include": [
-    "src/**/*"
-  ]
-}
+    "compilerOptions": {
+      "target": "ES2020",
+      "module": "commonjs",
+      "strict": true,
+      "esModuleInterop": true,
+      "skipLibCheck": true,
+      "forceConsistentCasingInFileNames": true,
+      "outDir": "./dist",
+      "resolveJsonModule": true
+    },
+    "include": ["src/**/*", "src/etherscan.ts"],
+    "exclude": ["node_modules"]
+  }
+  
